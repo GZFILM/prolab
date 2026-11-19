@@ -811,7 +811,7 @@ VIEWS.cut = () => {
 };
 
 VIEWS.settings = () => {
-  return `<div class="col">${bar("הגדרות", "חיבור ל-Claude ומידע")}
+  return `<div class="col">${bar("הגדרות", "חיבור ל-Claude ומידע", `<button class="btn" data-act="set-close">✕ סגור</button>`)}
   <div class="body"><div class="setgrid">
     <div class="logo">${LOGO("s")}<div><div class="wm">Pro<em>Lab</em></div><small>by G.Z MOTION LAB</small></div></div>
     <h2>איך ProLab מדבר עם Claude</h2>
@@ -829,8 +829,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "1.3";
+const APP_VERSION = "1.4";
 const CHANGES = [
+  ["1.4", ["הגדרות: כפתור ✕ סגור, ולחיצה שנייה על ⚙ הגדרות סוגרת וחוזרת למסך הקודם."]],
   ["1.3", ["השם ProLab צמוד ללוגו בסרגל.", "עדכונים נטענים תמיד במלואם, כדי שכל הכפתורים יעבדו אחרי עדכון."]],
   ["1.2", ["נגיעה בתמונת רפרנס מגדילה אותה ל-3 שניות. נגיעה בתמונה המוגדלת משאירה אותה פתוחה."]],
   ["1.1", ["תפריט צד עם שיתוף האפליקציה, הוספה למסך הבית, מה חדש ואודות.", "שמירה וגיבוי ישירות מהתפריט."]],
@@ -871,6 +872,7 @@ function openMenu() {
   $("#drawerwrap").hidden = false;
   setTimeout(() => $("#drawer .ditem")?.focus(), 30);
 }
+function closeSettings() { const p = ui.prev && ui.prev !== "settings" && VIEWS[ui.prev] ? ui.prev : "home"; go(p); }
 function closeMenu() { $("#drawerwrap").hidden = true; }
 $("#drawerwrap").addEventListener("click", e => { if (e.target.id === "drawerwrap") closeMenu(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#lightbox").hidden) closeLightbox(); else if (!$("#drawerwrap").hidden) closeMenu(); else if (!$("#sheetwrap").hidden) closeSheet(); } });
@@ -879,8 +881,9 @@ window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); instal
 window.addEventListener("appinstalled", () => { installEvt = null; toast("ProLab הותקנה במסך הבית ✓"); });
 const APP_URL = "https://gzfilm.github.io/prolab/";
 Object.assign(ACTIONS_EXTRA, {
-  menu() { openMenu(); },
-  dgo(el) { closeMenu(); commitEdit(); go(el.dataset.v); },
+  menu() { if (!$("#drawerwrap").hidden) closeMenu(); else openMenu(); },
+  "set-close"() { closeSettings(); },
+  dgo(el) { closeMenu(); commitEdit(); if (el.dataset.v === "settings" && ui.view === "settings") { closeSettings(); return; } go(el.dataset.v); },
   "m-new"() { closeMenu(); ACTIONS.new(); },
   "m-backup"() { closeMenu(); doExport("json", !!navigator.canShare); },
   async "m-share"() {
@@ -937,6 +940,7 @@ function render() {
 }
 function go(v, opts = {}) {
   if (v === ui.view && !opts.force) { render(); return; }
+  if (v === "settings" && ui.view !== "settings") ui.prev = ui.view;
   ui.view = v; ui.edit = null; ui.editHead = false;
   if (location.hash.slice(1) !== v) history.pushState(null, "", "#" + v);
   render();
@@ -1114,7 +1118,7 @@ const ACTIONS = {
 document.addEventListener("click", e => {
   const im = e.target.closest(".ref img[data-img]"); if (im && im.src) { e.preventDefault(); openLightbox(im.src); return; }
   const g = e.target.closest("[data-go]"); if (g) { e.preventDefault(); commitEdit(); go(g.dataset.go); return; }
-  const v = e.target.closest(".rail [data-view]"); if (v) { commitEdit(); go(v.dataset.view); return; }
+  const v = e.target.closest(".rail [data-view]"); if (v) { commitEdit(); if (v.dataset.view === "settings" && ui.view === "settings") { closeSettings(); return; } go(v.dataset.view); return; }
   const a = e.target.closest("[data-act]");
   const fn = a && (ACTIONS[a.dataset.act] || ACTIONS_EXTRA[a.dataset.act]);
   if (fn && a.tagName !== "SELECT") { if (a.disabled) return; fn(a, e); }
