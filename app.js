@@ -535,26 +535,35 @@ function budgetRules(extra) {
   return `\nTIME BUDGET (important): the shoot is planned for ${planDays()} day(s) of about ${planHours()} hours each, about ${availMin()} minutes of actual shooting after setup, meals and moves${n ? `; ${n} scenes means about ${per} minutes per scene on average (bigger scenes may get more, small ones less)` : ""}. Fit everything to this budget. ${extra || ""}\n`;
 }
 const shotCountHint = m => m <= 20 ? "2-4" : m <= 45 ? "3-6" : "3-8";
-function schedule() {
-  const tc = Object.assign(timeCfg(), { oneDay: budgeted() && planDays() === 1 });
+/* what is still left to shoot: Left = full time, Partial = half, Shot = nothing */
+function remMin(s) {
+  if (s.status === "cut") return 0;
+  if (s.shots && s.shots.length) return liveShots(s).reduce((a, x) => a + (x.status === "shot" ? 0 : x.status === "part" ? Math.ceil((+x.minutes || 0) / 2) : (+x.minutes || 0)), 0);
+  return s.status === "shot" ? 0 : s.status === "part" ? Math.ceil((+s.estMinutes || 30) / 2) : (+s.estMinutes || 30);
+}
+const hasProgress = () => P && P.scenes.some(s => s.status === "shot" || s.status === "part" || (s.shots || []).some(x => x.status === "shot" || x.status === "part"));
+function schedule(opts = {}) {
+  const R = !!opts.remaining;
+  const mins = s => R ? remMin(s) : sceneMin(s);
+  const tc = Object.assign(timeCfg(), { oneDay: budgeted() && planDays() === 1 && !R });
   const cap = (+P.hours || 6) * 60;
-  const live = P.scenes.filter(s => s.status !== "cut");
+  const live = P.scenes.filter(s => s.status !== "cut" && (!R || remMin(s) > 0));
   const first = {}, hasExt = {};
   live.forEach((s, i) => { const L = normLoc(s.location); if (!(L in first)) first[L] = i; if (/EXT/.test(s.intExt)) hasExt[L] = true; });
   const rank = s => RANK[s.time] ?? 2;
   const order = (a, b) => rank(a) - rank(b) || (hasExt[normLoc(a.location)] ? 0 : 1) - (hasExt[normLoc(b.location)] ? 0 : 1) || first[normLoc(a.location)] - first[normLoc(b.location)] || (/EXT/.test(a.intExt) ? 0 : 1) - (/EXT/.test(b.intExt) ? 0 : 1) || a.n - b.n;
   const days = [{ scenes: [] }]; let used = tc.setup, last = null;
   for (const s of live.filter(s => !s.day).sort(order)) {
-    const L = normLoc(s.location), m = sceneMin(s), mv = (last && last !== L) ? tc.move : 0;
+    const L = normLoc(s.location), m = mins(s), mv = (last && last !== L) ? tc.move : 0;
     if (!tc.oneDay && days[days.length - 1].scenes.length && used + mv + m > cap) { days.push({ scenes: [] }); used = tc.setup; last = null; }
     used += mv + m; days[days.length - 1].scenes.push(s); last = L;
   }
-  live.filter(s => s.day).sort(order).forEach(s => { while (days.length < s.day) days.push({ scenes: [] }); days[s.day - 1].scenes.push(s); });
+  if (!R) live.filter(s => s.day).sort(order).forEach(s => { while (days.length < s.day) days.push({ scenes: [] }); days[s.day - 1].scenes.push(s); });
   const call = toMin(P.call);
   days.forEach((d, i) => {
     d.n = i + 1; let t = call, work = tc.setup, lastL = null, meal = !tc.meal || (+P.hours < 6); d.items = [{ kind: "call", t, m: tc.setup }]; t += tc.setup;
     for (const s of d.scenes) {
-      const L = normLoc(s.location), m = sceneMin(s);
+      const L = normLoc(s.location), m = mins(s);
       if (!meal && work >= cap / 2) { d.items.push({ kind: "meal", t, m: MEAL }); t += MEAL; meal = true; }
       if (lastL !== L) { d.items.push({ kind: "loc", t, m: lastL ? tc.move : 0, loc: s.location, ie: s.intExt, time: s.time }); if (lastL) { t += tc.move; work += tc.move; } }
       d.items.push({ kind: "scene", s, t, m }); t += m; work += m; lastL = L;
@@ -803,18 +812,19 @@ VIEWS.shots = () => {
 VIEWS.plan = () => {
   if (!P) return `<div class="col">${noProject()}</div>`;
   if (!P.scenes.length) return `<div class="col">${bar('לו"ז', "")}<div class="body">${noScenes()}</div></div>`;
-  const days = schedule(), pr = progressOf(P.scenes);
+  const R = hasProgress() && (ui.planRemainSet ? !!ui.planRemain : true);
+  const days = schedule({ remaining: R }), pr = progressOf(P.scenes);
   const pc = v => (pr.total + pr.cut) ? v / (pr.total + pr.cut) * 100 : 0;
   const dayOpts = s => `<select data-act="pin" data-id="${s.id}" aria-label="יום צילום" style="min-height:34px;padding:4px 8px"><option value="0">Auto</option>${Array.from({ length: Math.max(days.length + 1, 2) }, (_, i) => `<option value="${i + 1}" ${s.day === i + 1 ? "selected" : ""}>Day ${i + 1}</option>`).join("")}</select>`;
-  const dayHTML = d => `<div class="day"><div class="dayhead"><h2>Day ${d.n} · Call ${hhmm(toMin(P.call))}</h2><span class="mono muted">Wrap ≈ ${hhmm(d.wrap)} · ${Math.round(d.work / 6) / 10}h מתוך ${P.hours}h</span><button class="btn whisky sm2" data-act="whisky" data-day="${d.n}">🥃 Whisky Shot</button><button class="btn sm2" data-act="set-day" data-day="${d.n}">מצב סט ←</button></div>
+  const dayHTML = d => `<div class="day"><div class="dayhead"><h2>${R ? (d.n === 1 ? "יום הצילום הבא" : "עוד יום " + d.n) : "Day " + d.n} · Call ${hhmm(toMin(P.call))}</h2><span class="mono muted">Wrap ≈ ${hhmm(d.wrap)} · ${Math.round(d.work / 6) / 10}h מתוך ${P.hours}h</span><button class="btn whisky sm2" data-act="whisky" data-day="${d.n}">🥃 Whisky Shot</button><button class="btn sm2" data-act="set-day" data-day="${d.n}">מצב סט ←</button></div>
     ${d.work > P.hours * 60 ? `<p class="callout" style="color:var(--crimson)">היום הזה עובר את ${P.hours} השעות. כדאי להעביר סצנה ליום אחר או לסמן שוטים כ-Cut.</p>` : ""}
     <div class="queue">${d.items.map(it => {
       if (it.kind === "call") return `<div class="card q misc"><span class="t">${hhmm(it.t)}</span><span>Call · הקמה וציוד (${it.m}')</span></div>`;
       if (it.kind === "meal") return `<div class="card q misc"><span class="t">${hhmm(it.t)}</span><span>🍽 הפסקת אוכל (${it.m}')</span></div>`;
       if (it.kind === "loc") return `<div class="card q loc"><span class="t">${hhmm(it.t)}</span><span>📍 ${esc(it.loc)} · ${esc(it.ie)} · ${esc(it.time)}${it.m ? ` <span class="muted small">(מעבר ${it.m}')</span>` : ""}</span>${noteCount("loc", normLoc(it.loc)) ? `<span class="tag n">📝 ${noteCount("loc", normLoc(it.loc))}</span>` : ""}</div>`;
-      const s = it.s; let t = it.t; const live = s.shots.length; const rem = remindersFor(s.n); const nc = noteCount("scene", s.id);
+      const s = it.s; let t = it.t; const live = s.shots.length; const doneN = s.shots.filter(x => x.status === "shot").length; const rem = remindersFor(s.n); const nc = noteCount("scene", s.id);
       return `<div class="card q sc"><div class="top"><span class="t">${hhmm(it.t)}</span><span class="grow"><b>Sc ${s.n} · ${esc(s.summary)}</b><br><span class="muted small">${live ? s.shots.length + " שוטים · " : ""}${esc(s.intExt)} ${esc(s.time)} · ${it.m}'${nc ? " · 📝 " + nc : ""}</span>${rem.map(r => `<span class="remind">✂ ${esc(r)}</span>`).join("")}</span>${dayOpts(s)}${live ? `<span class="mono">${s.shots.filter(x => x.status === "shot").length}/${liveShots(s).length}</span>` : chip(s.status, `data-act="st" data-k="scene" data-id="${s.id}"`)}</div>
-        ${live ? `<div class="shotrows">${s.shots.map(x => { const h = `<div class="shotrow ${x.status === "cut" ? "is-cut" : ""}"><span class="mono muted">${x.status === "cut" ? "" : hhmm(t)}</span><span class="mono">${esc(x.code)}</span><span class="d">${esc(x.desc)}</span><span class="mono muted">${esc(x.size)} · ${x.minutes}'</span>${chip(x.status, `data-act="st" data-k="shot" data-id="${x.id}"`)}</div>`; if (x.status !== "cut") t += +x.minutes || 0; return h; }).join("")}</div>` : ""}</div>`;
+        ${live ? `<div class="shotrows">${R && doneN ? `<span class="muted small">✓ ${doneN} שוטים כבר צולמו</span>` : ""}${s.shots.filter(x => !R || x.status !== "shot").map(x => { const h = `<div class="shotrow ${x.status === "cut" ? "is-cut" : ""}"><span class="mono muted">${x.status === "cut" ? "" : hhmm(t)}</span><span class="mono">${esc(x.code)}</span><span class="d">${esc(x.desc)}</span><span class="mono muted">${esc(x.size)} · ${x.minutes}'</span>${chip(x.status, `data-act="st" data-k="shot" data-id="${x.id}"`)}</div>`; if (x.status !== "cut") t += +x.minutes || 0; return h; }).join("")}</div>` : ""}</div>`;
     }).join("")}</div></div>`;
   const cutScenes = P.scenes.filter(s => s.status === "cut");
   const must = P.must && P.must.groups && P.must.groups.length ? `<div class="must">${P.must.groups.map(g => `<section><h3>${esc(g.name)}</h3>${g.items.map(i => `<div class="it ${i.priority === "nice" ? "nice" : ""} ${i.status === "cut" ? "is-cut" : ""}">${chip(i.status, `data-act="st" data-k="must" data-id="${i.id}"`)}<span>${esc(i.text)}${i.priority === "nice" ? ' <span class="muted small">(nice)</span>' : ""}</span></div>`).join("")}</section>`).join("")}</div>` : `<p class="muted">עוד לא נוצרה רשימה.</p>`;
@@ -823,7 +833,16 @@ VIEWS.plan = () => {
   return `<div class="col">${bar('לו"ז צילום', `${days.length} ימי צילום · ${Math.round(pr.total / 6) / 10}h · ${pr.pct}% צולם${mz}`, `${sel}<button class="btn teal" data-act="share-plan">שתף לצוות</button>${noteBtn}`)}
   <div class="body">
     <div class="pbar" title="ירוק = צולם · אדום = ירד"><i style="width:${pc(pr.done)}%;background:var(--teal)"></i><i style="width:${pc(pr.cut)}%;background:var(--crimson)"></i></div>
-    ${days.map(dayHTML).join("")}
+    ${hasProgress() ? (() => {
+      const remTotal = P.scenes.reduce((a, s) => a + remMin(s), 0), doneScenes = P.scenes.filter(s => s.status !== "cut" && remMin(s) === 0).length;
+      const leftScenes = P.scenes.filter(s => remMin(s) > 0).length, nd = schedule({ remaining: true });
+      const fits = nd.length <= 1 && (!nd[0] || nd[0].work <= P.hours * 60);
+      return `<div class="card" style="padding:14px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <div class="sumrow grow"><div><span class="lbl">צולם</span><b>${doneScenes} סצנות</b></div><div><span class="lbl">נשאר לצלם</span><b>${leftScenes} סצנות · ${Math.round(remTotal / 6) / 10}h</b></div>
+        <div><span class="lbl">ביום הבא</span><b style="color:${fits ? "var(--teal)" : "var(--crimson)"}">${leftScenes === 0 ? "הכל צולם 🎬" : fits ? "נכנס ביום אחד ✓" : "צריך " + nd.length + " ימים"}</b></div></div>
+        <div class="seg"><button class="${R ? "on" : ""}" data-act="plan-remain" data-v="1">מה שנשאר</button><button class="${R ? "" : "on"}" data-act="plan-remain" data-v="0">כל התוכנית</button></div></div>`;
+    })() : ""}
+    ${days.map(dayHTML).join("") || (R ? `<div class="empty"><p>הכל צולם 🎬</p><button class="btn whisky" data-act="whisky" data-day="1">🥃 Whisky Shot</button></div>` : "")}
     ${cutScenes.length ? `<div><h3>סצנות שירדו</h3>${cutScenes.map(s => `<div class="row small"><span class="mono">Sc ${s.n}</span><span>${esc(s.summary)}</span>${chip(s.status, `data-act="st" data-k="scene" data-id="${s.id}"`)}</div>`).join("")}</div>` : ""}
     <div class="row"><h2 class="grow">Must-Shoot · חובה לצלם</h2><button class="btn ai sm2" data-act="must" data-ai>✦ ${P.must && P.must.groups && P.must.groups.length ? "צור מחדש" : "צור רשימה"}</button></div>
     ${must}
@@ -969,8 +988,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "1.9";
+const APP_VERSION = "2.0";
 const CHANGES = [
+  ["2.0", ["לו\"ז \"מה שנשאר\": אחרי שמסמנים Shot ✓, הלו\"ז מראה רק מה שנשאר לצלם, כמה זמן זה לוקח, והאם זה נכנס ביום הבא.", "אפשר לעבור בין \"מה שנשאר\" ל\"כל התוכנית\"."]],
   ["1.9", ["מחיקת פרויקט ישר ממסך הבית: כפתור 🗑 בפינת הכרטיס."]],
   ["1.8", ["בהגדרות: מצב ⚡ עצמאי, בלי Claude. כשצריך רעיון או שדרוג, אפשר להפעיל את Claude רק לפעם הזו.", "\"אודות\" מעודכן."]],
   ["1.7", ["⚡ פירוק מהיר בלי Claude: מזהה סצנות, לוקיישנים, דמויות ודיאלוגים בשנייה, בחינם ובלי אינטרנט.", "⚡ כיסוי בסיסי: רשימת שוטים וסטוריבורד בסיסיים בלי Claude."]],
@@ -1121,7 +1141,7 @@ async function runAI(fn) { try { await fn(); } catch (e) { /* status already sho
 
 const ACTIONS = {
   new() { ui.wiz = null; go("new"); },
-  open(el) { const p = projects.find(x => x.id === el.dataset.id); if (p) { P = p; ui.scene = ui.shScene = ui.char = ui.loc = null; ui.setDay = 1; ui.setShot = null; go(p.scenes.length ? "script" : "new"); } },
+  open(el) { const p = projects.find(x => x.id === el.dataset.id); if (p) { P = p; ui.scene = ui.shScene = ui.char = ui.loc = null; ui.setDay = 1; ui.setShot = null; ui.planRemainSet = false; go(p.scenes.length ? "script" : "new"); } },
   "wiz-type"(el) { const k = ui.wiz.type = el.dataset.k; if (k === "mitzvah" && ui.wiz.hours > 6) ui.wiz.hours = 6; if (k !== "mitzvah" && ui.wiz.hours === 6 && !ui.wiz.touched) ui.wiz.hours = 8; rerender(); },
   "wiz-src"(el) { ui.wiz.text = ($("#wtext") || {}).value ?? ui.wiz.text; ui.wiz.src = el.dataset.k; rerender(); if (el.dataset.k === "file") $("#fScript").click(); },
   "wiz-file"() { $("#fScript").click(); },
@@ -1229,6 +1249,7 @@ const ACTIONS = {
     if (o) { o.status = ST[(ST.indexOf(o.status || "left") + 1) % ST.length]; save(); rerender(); }
   },
   pin(el) {},
+  "plan-remain"(el) { ui.planRemain = el.dataset.v === "1"; ui.planRemainSet = true; rerender(); },
   "plan-fit"() { if (!P.days && !isMitz()) P.days = Math.max(1, schedule().length); P.scenes.forEach(s => s.estMinutes = sceneBudget()); fitPlan(); save(); toast("כל הסצנות הותאמו: ~" + sceneBudget() + " דק׳ לסצנה"); rerender(); },
   hours(el) { P.hours = +el.dataset.h; fitPlan(); save(); rerender(); },
   pdays(el) { P.days = +el.dataset.d; fitPlan(); save(); rerender(); },
