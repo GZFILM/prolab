@@ -310,6 +310,88 @@ ${budgetRules("Only quick grabs: each suggestion should take 2-5 minutes.")}Sugg
 Reply with ONLY JSON: {"items":[{"kind":"shot","title":"...","text":"..."}]} where kind is one of shot, sound, vo, insert, other.`;
 }
 
+/* ================= quick local breakdown (no AI) =================
+   Reads a formatted script: scene headings (INT./EXT., פנים/חוץ, "סצנה 3"), character cues and
+   "NAME: line" dialogue. Instant, free and offline. Creative work (shots, ideas) stays with Claude. */
+const TIME_WORDS = [
+  [/\b(night|לילה|ליל)\b|לילה/i, "NIGHT"], [/\b(evening|dusk)\b|ערב|בין ערביים/i, "EVENING"], [/\b(sunset)\b|שקיעה/i, "SUNSET"],
+  [/\b(sunrise|dawn)\b|זריחה|שחר/i, "SUNRISE"], [/\b(morning)\b|בוקר/i, "MORNING"], [/\b(day|noon|afternoon)\b|יום|צהריים|צהרים/i, "DAY"]];
+const HEAD_RE = /^\s*(?:\d+[A-Za-z]?\s*[.)\-:]?\s*)?(?:(INT\.?\s*\/\s*EXT|EXT\.?\s*\/\s*INT|I\/E|INT|EXT)\b\.?|(פנים\s*\/\s*חוץ|חוץ\s*\/\s*פנים|פנים|חוץ)(?=[\s.,:\-–—\/]|$)|(scene|סצנה|סצינה|תמונה)\s*\d+)/i;
+function isHeading(line) { const t = line.trim(); return t.length > 2 && t.length < 110 && HEAD_RE.test(t); }
+function parseHeading(line) {
+  const t = line.trim(); let ie = "INT";
+  if (/INT\.?\s*\/\s*EXT|EXT\.?\s*\/\s*INT|I\/E|פנים\s*\/\s*חוץ|חוץ\s*\/\s*פנים/i.test(t)) ie = "INT/EXT";
+  else if (/\bEXT\b|חוץ/i.test(t)) ie = "EXT";
+  let time = "DAY"; for (const [re, v] of TIME_WORDS) if (re.test(t)) { time = v; break; }
+  let loc = t.replace(HEAD_RE, " ")
+    .replace(/\b(DAY|NIGHT|MORNING|EVENING|SUNSET|SUNRISE|DAWN|DUSK|NOON|AFTERNOON|CONTINUOUS|LATER|SAME)\b/gi, " ")
+    .replace(/(^|[\s.,:\-–—\/])(יום|לילה|בוקר|ערב|שקיעה|זריחה|צהריים|צהרים|שחר|המשך|מאוחר יותר)(?=$|[\s.,:\-–—\/])/g, " ")
+    .replace(/(^|[\s.,:\-–—\/])(פנים|חוץ|INT|EXT|I\/E)(?=$|[\s.,:\-–—\/])/gi, " ")
+    .replace(/^[\s.,:\-–—\/\d]+|[\s.,:\-–—\/]+$/g, "").replace(/\s{2,}/g, " ").trim();
+  return { intExt: ie, time, location: loc || "לוקיישן", heading: t };
+}
+const NAME_COLON = /^\s*([^\s:.,!?"״'()][^:.,!?"״]{0,24}?)\s*(?:\(([^)]{1,40})\))?\s*:\s*(.+)$/;
+function isCueLine(t) { return t.length > 0 && t.length <= 26 && t.split(/\s+/).length <= 3 && !/[.!?,:;"״]$/.test(t) && !/^\(.*\)$/.test(t) && !isHeading(t); }
+function localBreakdown(raw, type) {
+  const lines = String(raw || "").replace(/\r/g, "").split("\n");
+  // candidate cue names: short lines followed by text, or "NAME:" prefixes
+  const freq = {};
+  lines.forEach((l, i) => { const t = l.trim(); const nx = (lines[i + 1] || "").trim();
+    if (isCueLine(t) && nx && !isHeading(nx)) { const k = t.replace(/\s*\(.*\)$/, "").replace(/\s*(V\.O\.|O\.S\.|O\.C\.|CONT'D|\(המשך\))\s*$/i, "").trim(); freq[k] = (freq[k] || 0) + 1; }
+    const m = t.match(NAME_COLON); if (m && !isHeading(t)) freq[m[1].trim()] = (freq[m[1].trim()] || 0) + 1; });
+  const isUpper = t => /[A-Z]/.test(t) && t === t.toUpperCase();
+  const names = new Set(Object.keys(freq).filter(k => freq[k] >= 2 || isUpper(k)));
+  // scripts written as "NAME: line" — once that format is clear, accept every short colon name
+  const colon = lines.map(l => l.trim().match(NAME_COLON)).filter(m => m && m[1].trim().split(/\s+/).length <= 3);
+  if (colon.length >= 2) colon.forEach(m => names.add(m[1].trim()));
+  const scenes = []; let cur = null; let title = "";
+  const pushAct = x => { const last = cur.blocks[cur.blocks.length - 1]; if (last && last.t === "a" && !last.br) last.x += " " + x; else cur.blocks.push({ t: "a", c: "", p: "", x }); };
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (isHeading(t)) { const h = parseHeading(t); cur = { ...h, blocks: [] }; scenes.push(cur); continue; }
+    if (!cur) { if (t && !title && t.length < 60) title = t; continue; }
+    if (!t) { const last = cur.blocks[cur.blocks.length - 1]; if (last) last.br = true; continue; }
+    const m = t.match(NAME_COLON);
+    if (m && names.has(m[1].trim())) { cur.blocks.push({ t: "d", c: m[1].trim(), p: m[2] || "", x: m[3].trim() }); continue; }
+    const cue = t.replace(/\s*\(.*\)$/, "").replace(/\s*(V\.O\.|O\.S\.|O\.C\.|CONT'D|\(המשך\))\s*$/i, "").trim();
+    if (isCueLine(t) && names.has(cue)) {
+      const b = { t: "d", c: cue, p: (t.match(/\(([^)]+)\)\s*$/) || [])[1] || "", x: "" }; let j = i + 1;
+      while (j < lines.length) { const u = lines[j].trim(); if (!u || isHeading(u)) break; const um = u.match(NAME_COLON); if ((isCueLine(u) && names.has(u)) || (um && names.has(um[1].trim()))) break;
+        if (/^\(.*\)$/.test(u) && !b.x) b.p = u.slice(1, -1); else b.x += (b.x ? " " : "") + u; j++; }
+      if (b.x) { cur.blocks.push(b); i = j - 1; continue; }
+    }
+    pushAct(t);
+  }
+  if (!scenes.length) return null;
+  const count = {}; scenes.forEach(sc => sc.blocks.forEach(b => { if (b.t === "d") count[b.c] = (count[b.c] || 0) + 1; }));
+  const sorted = Object.keys(count).sort((a, b) => count[b] - count[a]);
+  const chars = sorted.map((n, i) => ({ name: n, role: i === 0 ? "lead" : count[n] >= 2 ? "supporting" : "extra", desc: "" }));
+  const per = type === "mitzvah" ? 15 : 0;
+  const out = scenes.map((sc, i) => {
+    const words = sc.blocks.reduce((a, b) => a + b.x.split(/\s+/).length, 0);
+    const speakers = [...new Set(sc.blocks.filter(b => b.t === "d").map(b => b.c))];
+    const mentioned = sorted.filter(n => !speakers.includes(n) && sc.blocks.some(b => b.t === "a" && b.x.includes(n)));
+    const firstAct = (sc.blocks.find(b => b.t === "a") || sc.blocks[0] || { x: "" }).x;
+    const summary = firstAct.length > 80 ? firstAct.slice(0, 78).replace(/\s+\S*$/, "") + "…" : firstAct;
+    return newScene({ n: i + 1, heading: sc.heading, location: sc.location, intExt: sc.intExt, time: sc.time, summary: summary || sc.location,
+      characters: speakers.concat(mentioned), estMinutes: per || clamp(Math.round(15 + words * 0.35), 10, 120),
+      blocks: sc.blocks.map(b => ({ t: b.t, c: b.c, p: b.p, x: b.x })) });
+  });
+  return { title: title || "פרויקט חדש", chars, scenes: out };
+}
+/* basic coverage without AI: master, singles for speakers, a two-shot and an insert */
+function quickShots(s) {
+  const sp = [...new Set(s.blocks.filter(b => b.t === "d").map(b => b.c))];
+  const who = sp.length ? sp : (s.characters || []).slice(0, 2);
+  const list = [{ size: /EXT/.test(s.intExt) ? "EWS" : "WS", angle: "eye", move: "static", lens: "24mm", desc: "מאסטר של " + s.location, purpose: "Establishing ומאסטר לכל הסצנה", figures: who.slice(0, 3).map((n, i, a) => ({ name: n, x: a.length === 1 ? 50 : 30 + i * (40 / Math.max(1, a.length - 1)) })) }];
+  if (who.length >= 2) list.push({ size: "2-SHOT", angle: "eye", move: "static", lens: "35mm", desc: who[0] + " ו" + who[1], purpose: "היחסים בין הדמויות", figures: [{ name: who[0], x: 38 }, { name: who[1], x: 62 }] });
+  who.slice(0, 3).forEach((n, i) => list.push({ size: sp.includes(n) ? "MCU" : "MS", angle: "eye", move: "static", lens: "50mm", desc: (sp.includes(n) ? "קלוז על " : "") + n, purpose: sp.includes(n) ? "הדיאלוג והתגובות" : "הפעולה", figures: [{ name: n, x: i % 2 ? 62 : 40 }] }));
+  if (!who.length) list.push({ size: "MS", angle: "eye", move: "handheld", lens: "35mm", desc: "הפעולה בסצנה", purpose: "כיסוי", figures: [] });
+  list.push({ size: "INSERT", angle: "high", move: "static", lens: "100mm", desc: "פרט מהסצנה", purpose: "לעריכה", figures: [], prop: "פרט" });
+  const budget = s.estMinutes || 30; const each = Math.max(3, Math.floor(budget / list.length));
+  return list.map(x => Object.assign(x, { minutes: each }));
+}
+
 /* ================= normalize ================= */
 function normBreakdown(r) {
   const chars = (Array.isArray(r.characters) ? r.characters : []).filter(c => c && c.name).map(c => ({ name: String(c.name), role: ["lead", "supporting", "extra"].includes(c.role) ? c.role : "supporting", desc: c.desc || "" }));
@@ -575,8 +657,8 @@ VIEWS.new = () => {
     <label class="row"><span class="lbl">Call</span><input type="time" id="wcall" value="${esc(w.call)}"></label></div>
     <p class="muted small">${TYPE_LABEL[w.type]} · ${w.src === "idea" ? "רעיון" : w.text.length.toLocaleString() + " תווים"}</p>
     ${w.type === "mitzvah" ? `<p class="callout">בר/בת מצווה: כל הסרט ביום אחד, עד ${w.hours} שעות. כל סצנה מקבלת 10-20 דקות, והשוטים, הרעיונות והמעברים מותאמים לזמן הזה.</p>` : `<p class="callout">${w.days === 1 ? "יום אחד" : w.days + " ימים"} × ${w.hours} שעות. הפירוק, השוטים, הרעיונות והמעברים יותאמו לזמן הזה.</p>`}
-    <div class="row"><button class="btn" data-act="wiz-back">→ חזרה</button><button class="btn primary" data-act="wiz-run" data-ai>✦ פרק ובנה תוכנית</button></div>
-    <p class="muted small">הפירוק לוקח בדרך כלל חצי דקה עד שתי דקות. אחריו נוצרת אוטומטית רשימת "חובה לצלם".</p>`;
+    <div class="row"><button class="btn" data-act="wiz-back">→ חזרה</button>${w.src === "idea" ? "" : `<button class="btn primary" data-act="wiz-quick">⚡ פירוק מהיר</button>`}<button class="btn ${w.src === "idea" ? "primary" : "ai"}" data-act="wiz-run" data-ai>✦ פירוק חכם עם Claude</button></div>
+    <p class="muted small">${w.src === "idea" ? "רעיון בלי תסריט צריך את Claude כדי לבנות מבנה של סצנות." : "<b>⚡ פירוק מהיר</b>: מיידי, בחינם ובלי אינטרנט. מזהה סצנות, לוקיישנים, דמויות ודיאלוגים בתסריט מסודר. <b>✦ פירוק חכם</b>: Claude מבין גם תסריט לא מסודר, כותב תקצירים ובונה רשימת \"חובה לצלם\"."}</p>`;
   return `<div class="col">${bar("פרויקט חדש", "", steps, `<button class="btn ghost" data-go="home" aria-label="סגור">✕</button>`)}<div class="body">${body}</div></div>`;
 };
 
@@ -699,11 +781,11 @@ VIEWS.shots = () => {
       <div class="foot">${chip(x.status, `data-act="st" data-k="shot" data-id="${x.id}"`)}<span class="mono muted">${x.minutes} דק׳</span><span class="grow"></span><button class="btn ghost sm2" data-act="shot-move" data-id="${x.id}" data-d="-1" aria-label="הזז אחורה">↑</button><button class="btn ghost sm2" data-act="shot-move" data-id="${x.id}" data-d="1" aria-label="הזז קדימה">↓</button><button class="btn sm2" data-act="shot-edit" data-id="${x.id}">✎ ערוך</button></div>
     </div></article>`;
   const over = budgeted() && sceneMin(s) > (s.estMinutes || sceneBudget());
-  return `<div class="col">${bar("שוטים וסטוריבורד", `Scene ${s.n} · ${s.shots.length} שוטים · ${sceneMin(s)} דק׳${budgeted() ? ` מתוך ${s.estMinutes || sceneBudget()}${over ? " ⚠" : ""}` : ""}`, `<button class="btn ${s.shots.length ? "ai" : "primary"}" data-act="gen1" data-id="${s.id}" data-ai>✦ ${s.shots.length ? "צור מחדש" : "צור שוטים"}</button><button class="btn" data-act="shot-new">+ שוט</button>${missing ? `<button class="btn" data-act="genall" data-ai>✦ לכל הסצנות (${missing})</button>` : ""}${noteBtn}`)}
+  return `<div class="col">${bar("שוטים וסטוריבורד", `Scene ${s.n} · ${s.shots.length} שוטים · ${sceneMin(s)} דק׳${budgeted() ? ` מתוך ${s.estMinutes || sceneBudget()}${over ? " ⚠" : ""}` : ""}`, `<button class="btn ${s.shots.length ? "ai" : "primary"}" data-act="gen1" data-id="${s.id}" data-ai>✦ ${s.shots.length ? "צור מחדש" : "צור שוטים"}</button><button class="btn" data-act="quick-shots">⚡ כיסוי בסיסי</button><button class="btn" data-act="shot-new">+ שוט</button>${missing ? `<button class="btn" data-act="genall" data-ai>✦ לכל הסצנות (${missing})</button><button class="btn" data-act="quick-shots" data-all="1">⚡ בסיסי לכל הסצנות</button>` : ""}${noteBtn}`)}
   <div class="body">
     <div class="scenetabs">${P.scenes.map(x => `<button class="${x.id === s.id ? "on" : ""} ${x.shots.length ? "has" : ""}" data-act="shs" data-id="${x.id}">Sc ${x.n}</button>`).join("")}</div>
     <p class="muted small">${esc(s.summary)}</p>
-    ${s.shots.length ? `<div class="shotgrid">${s.shots.map(shotCard).join("")}</div>` : `<div class="empty"><p>עוד אין שוטים לסצנה הזו. בינתיים הלו"ז משתמש בהערכה של ${s.estMinutes} דקות.</p><button class="btn primary" data-act="gen1" data-id="${s.id}" data-ai>✦ צור שוטים</button></div>`}
+    ${s.shots.length ? `<div class="shotgrid">${s.shots.map(shotCard).join("")}</div>` : `<div class="empty"><p>עוד אין שוטים לסצנה הזו. בינתיים הלו"ז משתמש בהערכה של ${s.estMinutes} דקות.</p><div class="row" style="justify-content:center"><button class="btn primary" data-act="gen1" data-id="${s.id}" data-ai>✦ שוטים חכמים עם Claude</button><button class="btn" data-act="quick-shots">⚡ כיסוי בסיסי (בלי Claude)</button></div></div>`}
     ${s.ideas && s.ideas.length ? `<div><h3>${["narrative", "mitzvah", "clip", "promo"].includes(P.type) ? "✦ רעיונות מקוריים" : "✦ טיפים לצילום"}</h3><ul class="ideas">${s.ideas.map(i => `<li>${esc(i)}</li>`).join("")}</ul></div>` : ""}
   </div></div>${notesPane()}`;
 };
@@ -876,8 +958,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "1.6";
+const APP_VERSION = "1.7";
 const CHANGES = [
+  ["1.7", ["⚡ פירוק מהיר בלי Claude: מזהה סצנות, לוקיישנים, דמויות ודיאלוגים בשנייה, בחינם ובלי אינטרנט.", "⚡ כיסוי בסיסי: רשימת שוטים וסטוריבורד בסיסיים בלי Claude."]],
   ["1.6", ["בעלילתי, תדמית, שיווק, פרומו, קליפ וכנס: בוחרים כמה ימי צילום וכמה שעות ביום, והפירוק, השוטים והרעיונות מותאמים לזה.", "בלו\"ז: שינוי ימים ושעות, והתראה אם התוכנית חורגת."]],
   ["1.5", ["בר/בת מצווה: כל הסרט ביום אחד של עד 6 שעות, 10-20 דקות לסצנה.", "השוטים, הרעיונות, השדרוגים, המעברים וה-Whisky Shot מותאמים לתקציב הזמן.", "כפתור ⏱ להתאמת כל הסצנות לשעות היום."]],
   ["1.4", ["הגדרות: כפתור ✕ סגור, ולחיצה שנייה על ⚙ הגדרות סוגרת וחוזרת למסך הקודם."]],
@@ -1029,6 +1112,14 @@ const ACTIONS = {
   },
   "wiz-hours"(el) { ui.wiz.hours = +el.dataset.h; ui.wiz.call = $("#wcall").value || ui.wiz.call; rerender(); },
   "wiz-days"(el) { ui.wiz.days = +el.dataset.d; ui.wiz.call = $("#wcall").value || ui.wiz.call; rerender(); },
+  "wiz-quick"() {
+    const w = ui.wiz; w.call = $("#wcall").value || "07:00";
+    const r = localBreakdown(w.text, w.type);
+    if (!r) { openSheet(`<h2>לא זיהיתי סצנות</h2><p>הפירוק המהיר מחפש כותרות סצנה, למשל:</p><p class="mono" dir="auto">פנים. החדר של יונתן - בוקר<br>EXT. BEACH - SUNSET<br>סצנה 3: חוף הים, שקיעה</p><p class="muted">אפשר להוסיף כותרות כאלה לתסריט, או להשתמש ב-✦ פירוק חכם עם Claude, שמבין גם טקסט לא מסודר.</p><div class="row"><button class="btn" data-act="sheet-close">הבנתי</button></div>`); return; }
+    P = { id: uid(), v: 2, created: Date.now(), type: w.type, days: w.type === "mitzvah" ? 1 : w.days, hours: w.hours, call: w.call, source: w.text.slice(0, 60000), title: r.title, logline: "", inferred: false, quick: true, characters: r.chars, scenes: r.scenes, transitions: [], must: null, notes: [], whisky: {} };
+    fitPlan(); projects.push(P); save(); ui.wiz = null; ui.scene = null; ui.sub = "scenes"; go("script");
+    toast(`⚡ ${r.scenes.length} סצנות · ${r.chars.length} דמויות · בלי Claude`);
+  },
   "wiz-run"() {
     const w = ui.wiz; w.call = $("#wcall").value || "07:00";
     runAI(async () => {
@@ -1089,6 +1180,11 @@ const ACTIONS = {
     runAI(async () => {
       for (const s of P.scenes.filter(x => !x.shots.length)) { ui.shScene = s.id; render(); const r = await ask(pShots(s), `יוצר שוטים לסצנה ${s.n} מתוך ${P.scenes.length}`); applyShots(s, r); save(); render(); }
     });
+  },
+  "quick-shots"(el) {
+    const targets = el.dataset.all ? P.scenes.filter(x => !x.shots.length) : [shScene()];
+    targets.forEach(s => { s.shots = s.shots.filter(x => x.status !== "left" || (x.refs || []).length).concat(quickShots(s).map(x => normShot(x, ""))); recode(s); s.dirty = false; fitShots(s); });
+    save(); toast(targets.length > 1 ? `⚡ כיסוי בסיסי ל-${targets.length} סצנות` : "⚡ כיסוי בסיסי נוצר"); rerender();
   },
   "shot-new"() { const s = shScene(); const x = normShot({ size: "MS", desc: "שוט חדש", minutes: 10, figures: (s.characters || []).slice(0, 1).map(n => ({ name: n, x: 50 })) }, ""); s.shots.push(x); recode(s); save(); openShotSheet(x.id); },
   "shot-edit"(el) { openShotSheet(el.dataset.id); },
