@@ -848,7 +848,7 @@ VIEWS.plan = () => {
     ${must}
     <p class="muted small">${isMitz() ? `בר/בת מצווה: הכל ביום אחד. Call כולל ${MITZ.setup}' הקמה, כל מעבר לוקיישן ${MITZ.move}', כל סצנה 10-20 דקות. הסדר מקובץ לפי לוקיישן ואור.` : `הסדר מקובץ לפי לוקיישן ואור: חוץ ביום קודם, שקיעה ולילה בסוף. Call כולל ${SETUP}' הקמה, כל מעבר לוקיישן ${MOVE}', והפסקת אוכל ${MEAL}' בימים של 6 שעות ומעלה. אפשר לנעוץ סצנה ליום מסוים.`}</p>
     ${budgeted() && days.length > planDays() ? `<p class="callout" style="color:var(--crimson)">התוכנית חורגת מ-${planDays() === 1 ? "יום אחד" : planDays() + " ימים"}. לחץ ⏱ כדי להתאים, או הוסף יום.</p>` : ""}
-    <div class="row"><button class="btn sm2" data-act="plan-fit">⏱ התאם את כל הסצנות ל-${isMitz() ? planHours() + " שעות" : (budgeted() ? planDays() : Math.max(1, days.length)) + "×" + planHours() + "h"}</button></div>
+    <div class="row">${(ui.undo || []).length ? `<button class="btn sm2" data-act="undo">↩ בטל סימון</button>` : ""}${hasProgress() ? `<button class="btn sm2" data-act="reset-progress">↺ אפס סימונים</button>` : ""}<button class="btn sm2" data-act="plan-fit">⏱ התאם את כל הסצנות ל-${isMitz() ? planHours() + " שעות" : (budgeted() ? planDays() : Math.max(1, days.length)) + "×" + planHours() + "h"}</button></div>
   </div></div>${notesPane()}`;
 };
 
@@ -862,7 +862,7 @@ VIEWS.set = () => {
   const days = schedule(); ui.setDay = clamp(ui.setDay || 1, 1, days.length);
   const day = days[ui.setDay - 1]; const q = setQueue(day);
   const isDone = e => (e.x ? e.x.status : e.s.status) === "shot";
-  let cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot && !isDone(e)) || q.find(e => !isDone(e)) || null;
+  let cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot) || q.find(e => !isDone(e)) || null;
   const pr = progressOf(day.scenes);
   const daySeg = days.length > 1 ? `<div class="seg">${days.map(d => `<button class="${d.n === ui.setDay ? "on" : ""}" data-act="set-day" data-day="${d.n}">Day ${d.n}</button>`).join("")}</div>` : "";
   const ring = `<svg class="ring" viewBox="0 0 36 36"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#33bfae"/><stop offset="1" stop-color="#f3b54a"/></linearGradient></defs><circle cx="18" cy="18" r="15" fill="none" stroke="var(--left-bg)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="url(#rg)" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(pr.pct / 100 * 94.2).toFixed(1)} 94.2" transform="rotate(-90 18 18)"/><text x="18" y="21" text-anchor="middle" font-size="8" font-weight="700" fill="var(--ink)" font-family="Rubik">${pr.pct}%</text></svg>`;
@@ -871,7 +871,9 @@ VIEWS.set = () => {
   else {
     const x = cur.x, s = cur.s, f = (x && x.flags) || {};
     const rem = remindersFor(s.n);
-    now = `<div class="card now"><span class="mono muted">עכשיו מצלמים · Sc ${s.n} · ${esc(s.location)}</span>
+    const cst = (x || s).status || "left";
+    now = `<div class="card now"><span class="mono muted">${cst === "left" ? "עכשיו מצלמים" : "פתחת שוט שכבר סומן"} · Sc ${s.n} · ${esc(s.location)}</span>
+      ${cst !== "left" ? `<div class="dirty">כרגע מסומן: ${STL[cst]} <button class="btn sm2" data-act="set-mark" data-s="left">↺ החזר ל-Left (לא צולם)</button></div>` : ""}
       <div class="row"><span class="code">${x ? esc(x.code) : "Sc " + s.n}</span><div><h3>${esc(x ? x.desc : s.summary)}</h3><span class="muted">${x ? `${esc(x.size)} · ${esc(x.move)}${x.lens ? " · " + esc(x.lens) : ""} · ${x.minutes} דק׳` : "בלי פירוק לשוטים"}</span></div></div>
       ${x ? `<div class="sbbox">${frame(x, PAL_APP)}</div>` : ""}
       ${x && (x.refs || []).length ? `<div class="refs">${x.refs.map(r => r.type === "img" ? `<span class="ref"><img data-img="${r.img}" alt="רפרנס"></span>` : `<a class="ref" href="${esc(r.url)}" target="_blank" rel="noopener"><span class="lk">🔗 ${esc(r.url.replace(/^https?:\/\/(www\.)?/, ""))}</span></a>`).join("")}</div>` : ""}
@@ -882,12 +884,14 @@ VIEWS.set = () => {
     </div>`;
   }
   const nextList = q.filter(e => e !== cur && !isDone(e)).slice(0, 4);
-  return `<div class="col">${bar("מצב סט", `Day ${ui.setDay} · ${pr.nDone}/${pr.nShots} צולמו`, `${daySeg}<button class="btn whisky" data-act="whisky" data-day="${ui.setDay}">🥃 Whisky Shot</button>${cur && cur.x ? `<button class="btn" data-act="ref-cam" data-shot="${cur.x.id}">📷 רפרנס</button>` : ""}<button class="btn" data-act="note-open">📝 הערה</button>`)}
+  const undoBtn = (ui.undo || []).length ? `<button class="btn" data-act="undo">↩ בטל סימון</button>` : "";
+  return `<div class="col">${bar("מצב סט", `Day ${ui.setDay} · ${pr.nDone}/${pr.nShots} צולמו`, `${undoBtn}${daySeg}<button class="btn whisky" data-act="whisky" data-day="${ui.setDay}">🥃 Whisky Shot</button>${cur && cur.x ? `<button class="btn" data-act="ref-cam" data-shot="${cur.x.id}">📷 רפרנס</button>` : ""}<button class="btn" data-act="note-open">📝 הערה</button>`)}
   <div class="body"><div class="setwrap">${now}
     <div style="display:flex;flex-direction:column;gap:10px">
       <div class="card" style="padding:14px;display:flex;gap:14px;align-items:center">${ring}<div><b>Day ${ui.setDay}</b><br><span class="muted">${pr.nDone} מתוך ${pr.nShots} · Wrap ≈ ${hhmm(day.wrap)}</span></div></div>
       ${nextList.length ? `<span class="mono muted">הבא בתור</span>${nextList.map(e => `<button class="card q qbtn" data-act="set-pick" data-id="${e.x ? e.x.id : e.s.id}"><span class="t">${e.x ? esc(e.x.code) : "Sc " + e.s.n}</span><span class="grow">${esc(e.x ? e.x.size + " · " + e.x.desc : e.s.summary)}</span>${e.x && e.x.status === "part" ? '<span class="tag a">Partial</span>' : ""}</button>`).join("")}` : ""}
-      ${q.filter(isDone).length ? `<span class="mono muted">צולמו</span>${q.filter(isDone).slice(-3).map(e => `<button class="card q qbtn" data-act="set-pick" data-id="${e.x ? e.x.id : e.s.id}" style="opacity:.6"><span class="t">${e.x ? esc(e.x.code) : "Sc " + e.s.n}</span><span class="grow">${esc(e.x ? e.x.desc : e.s.summary)}</span><span class="tag t">✓</span></button>`).join("")}` : ""}
+      ${q.filter(isDone).length ? `<span class="mono muted">צולמו · נגיעה פותחת ומאפשרת לבטל</span>${q.filter(isDone).slice(-6).map(e => `<button class="card q qbtn" data-act="set-pick" data-id="${e.x ? e.x.id : e.s.id}" style="opacity:.6"><span class="t">${e.x ? esc(e.x.code) : "Sc " + e.s.n}</span><span class="grow">${esc(e.x ? e.x.desc : e.s.summary)}</span><span class="tag t">✓</span></button>`).join("")}` : ""}
+      ${hasProgress() ? `<button class="btn ghost sm2" data-act="reset-progress">↺ אפס את כל הסימונים</button>` : ""}
     </div></div></div></div>${notesPane()}`;
 };
 
@@ -988,8 +992,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "2.0";
+const APP_VERSION = "2.1";
 const CHANGES = [
+  ["2.1", ["↩ בטל סימון: מבטל את הסימון האחרון (Shot / Partial / Cut).", "במצב סט: נגיעה בשוט שכבר צולם פותחת אותו, ואפשר להחזיר אותו ל-Left.", "↺ אפס את כל הסימונים: מחזיר את הפרויקט למצב שלפני הצילום."]],
   ["2.0", ["לו\"ז \"מה שנשאר\": אחרי שמסמנים Shot ✓, הלו\"ז מראה רק מה שנשאר לצלם, כמה זמן זה לוקח, והאם זה נכנס ביום הבא.", "אפשר לעבור בין \"מה שנשאר\" ל\"כל התוכנית\"."]],
   ["1.9", ["מחיקת פרויקט ישר ממסך הבית: כפתור 🗑 בפינת הכרטיס."]],
   ["1.8", ["בהגדרות: מצב ⚡ עצמאי, בלי Claude. כשצריך רעיון או שדרוג, אפשר להפעיל את Claude רק לפעם הזו.", "\"אודות\" מעודכן."]],
@@ -1141,7 +1146,7 @@ async function runAI(fn) { try { await fn(); } catch (e) { /* status already sho
 
 const ACTIONS = {
   new() { ui.wiz = null; go("new"); },
-  open(el) { const p = projects.find(x => x.id === el.dataset.id); if (p) { P = p; ui.scene = ui.shScene = ui.char = ui.loc = null; ui.setDay = 1; ui.setShot = null; ui.planRemainSet = false; go(p.scenes.length ? "script" : "new"); } },
+  open(el) { const p = projects.find(x => x.id === el.dataset.id); if (p) { P = p; ui.scene = ui.shScene = ui.char = ui.loc = null; ui.setDay = 1; ui.setShot = null; ui.planRemainSet = false; ui.undo = []; go(p.scenes.length ? "script" : "new"); } },
   "wiz-type"(el) { const k = ui.wiz.type = el.dataset.k; if (k === "mitzvah" && ui.wiz.hours > 6) ui.wiz.hours = 6; if (k !== "mitzvah" && ui.wiz.hours === 6 && !ui.wiz.touched) ui.wiz.hours = 8; rerender(); },
   "wiz-src"(el) { ui.wiz.text = ($("#wtext") || {}).value ?? ui.wiz.text; ui.wiz.src = el.dataset.k; rerender(); if (el.dataset.k === "file") $("#fScript").click(); },
   "wiz-file"() { $("#fScript").click(); },
@@ -1246,7 +1251,25 @@ const ACTIONS = {
     if (k === "scene") o = P.scenes.find(s => s.id === id);
     if (k === "shot") { const f = findShot(id); o = f && f.x; }
     if (k === "must") (P.must && P.must.groups || []).forEach(g => g.items.forEach(i => { if (i.id === id) o = i; }));
-    if (o) { o.status = ST[(ST.indexOf(o.status || "left") + 1) % ST.length]; save(); rerender(); }
+    if (o) { setStatus(k, id, ST[(ST.indexOf(o.status || "left") + 1) % ST.length]); rerender(); }
+  },
+  undo() {
+    const batch = (ui.undo || []).pop(); if (!batch) return;
+    batch.forEach(u => { const o = statusObj(u.kind, u.id); if (o) o.status = u.prev; });
+    save(); toast(batch.length > 1 ? `בוטל: ${batch.length} סימונים חזרו` : "הסימון בוטל"); rerender();
+  },
+  "reset-progress"() {
+    openSheet(`<h2>↺ לאפס את כל הסימונים?</h2><p>כל מה שסומן <b>Shot ✓</b> או <b>Partial</b> בפרויקט יחזור ל-<b>Left</b>, כאילו עוד לא צילמת. התסריט, השוטים וההערות נשארים כמו שהם.</p>
+      <label class="row small"><input type="checkbox" id="rcut"> להחזיר גם את מה שסומן <b>Cut ✕</b></label>
+      <p class="muted small">אפשר לבטל את האיפוס בכפתור "↩ בטל סימון".</p>
+      <div class="row"><button class="btn danger" id="rgo">אפס</button><button class="btn" data-act="sheet-close">ביטול</button></div>`);
+    $("#rgo").onclick = () => {
+      const withCut = $("#rcut").checked, batch = [];
+      const reset = (kind, o) => { const st = o.status || "left"; if (st === "shot" || st === "part" || (withCut && st === "cut")) { batch.push({ kind, id: o.id, prev: st }); o.status = "left"; } };
+      P.scenes.forEach(s => { reset("scene", s); s.shots.forEach(x => reset("shot", x)); });
+      if (batch.length) (ui.undo = ui.undo || []).push(batch);
+      save(); closeSheet(); ui.setShot = null; toast(`אופס: ${batch.length} סימונים`); rerender();
+    };
   },
   pin(el) {},
   "plan-remain"(el) { ui.planRemain = el.dataset.v === "1"; ui.planRemainSet = true; rerender(); },
@@ -1259,15 +1282,16 @@ const ACTIONS = {
   "set-mark"(el) {
     const days = schedule(); const day = days[clamp(ui.setDay, 1, days.length) - 1]; const q = setQueue(day);
     const isDone = e => (e.x ? e.x.status : e.s.status) === "shot";
-    const cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot && !isDone(e)) || q.find(e => !isDone(e)); if (!cur) return;
-    (cur.x || cur.s).status = el.dataset.s; ui.setShot = null; save();
+    const cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot) || q.find(e => !isDone(e)); if (!cur) return;
+    setStatus(cur.x ? "shot" : "scene", (cur.x || cur.s).id, el.dataset.s); ui.setShot = el.dataset.s === "left" ? (cur.x || cur.s).id : null;
+    toast(el.dataset.s === "left" ? "הוחזר ל-Left" : STL[el.dataset.s] + " · " + (cur.x ? cur.x.code : "Sc " + cur.s.n) + " · אפשר לבטל ב-↩");
     if (navigator.vibrate) navigator.vibrate(30);
     rerender();
   },
   flag(el) {
     const days = schedule(); const day = days[clamp(ui.setDay, 1, days.length) - 1]; const q = setQueue(day);
     const isDone = e => (e.x ? e.x.status : e.s.status) === "shot";
-    const cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot && !isDone(e)) || q.find(e => !isDone(e)); if (!cur || !cur.x) return;
+    const cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot) || q.find(e => !isDone(e)); if (!cur || !cur.x) return;
     const f = cur.x.flags = cur.x.flags || {}; f[el.dataset.f] = !f[el.dataset.f]; ui.setShot = cur.x.id; save(); rerender();
   },
   whisky(el) { if (el.dataset.day) ui.setDay = +el.dataset.day; go("whisky"); },
@@ -1334,6 +1358,17 @@ document.addEventListener("input", e => {
   if (e.target.id === "wtext" && ui.wiz) ui.wiz.text = e.target.value;
 });
 
+function statusObj(kind, id) {
+  if (kind === "scene") return P.scenes.find(s => s.id === id);
+  if (kind === "shot") { const f = findShot(id); return f && f.x; }
+  if (kind === "must") { let o = null; (P.must && P.must.groups || []).forEach(g => g.items.forEach(i => { if (i.id === id) o = i; })); return o; }
+  return null;
+}
+function setStatus(kind, id, val) {
+  const o = statusObj(kind, id); if (!o) return;
+  (ui.undo = ui.undo || []).push([{ kind, id, prev: o.status || "left" }]); if (ui.undo.length > 40) ui.undo.shift();
+  o.status = val; save();
+}
 function deleteProject(p) {
   IDB.del(p.id).catch(() => {});
   (p.scenes || []).forEach(s => (s.shots || []).forEach(x => (x.refs || []).forEach(r => { if (r.img) IDB.delImg(r.img).catch(() => {}); })));
