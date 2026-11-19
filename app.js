@@ -644,7 +644,7 @@ VIEWS.home = () => {
   return `<div class="col">${bar(`<span class="logo"><span><span class="wm">Pro<em>Lab</em></span><small>by G.Z MOTION LAB</small></span></span>`, "", `<button class="btn primary" data-act="new">+ פרויקט חדש</button>`)}
   <div class="body"><div class="projgrid">
     <button class="newcard" data-act="new"><b>+</b>פרויקט חדש</button>
-    ${list.map(p => { const pr = progressOf(p.scenes || []); return `<button class="card proj" data-act="open" data-id="${p.id}"><span class="thumb">${thumbFor(p)}</span><span class="in"><b>${esc(p.title || "פרויקט ללא שם")}${p.demo ? ' <span class="tag n">דוגמה</span>' : ""}</b><span class="muted small">${TYPE_LABEL[p.type] || ""} · ${(p.scenes || []).length} סצנות</span><span class="prog"><i style="width:${pr.pct}%"></i></span><span class="mono muted">${pr.pct === 100 ? "הושלם ✓" : pr.pct ? pr.pct + "% צולם" : "מוכן לצילום"}</span></span></button>`; }).join("")}
+    ${list.map(p => { const pr = progressOf(p.scenes || []); return `<div class="projwrap"><button class="pdel" data-act="home-del" data-id="${p.id}" aria-label="מחק את ${esc(p.title || "הפרויקט")}">🗑</button><button class="card proj" data-act="open" data-id="${p.id}"><span class="thumb">${thumbFor(p)}</span><span class="in"><b>${esc(p.title || "פרויקט ללא שם")}${p.demo ? ' <span class="tag n">דוגמה</span>' : ""}</b><span class="muted small">${TYPE_LABEL[p.type] || ""} · ${(p.scenes || []).length} סצנות</span><span class="prog"><i style="width:${pr.pct}%"></i></span><span class="mono muted">${pr.pct === 100 ? "הושלם ✓" : pr.pct ? pr.pct + "% צולם" : "מוכן לצילום"}</span></span></button></div>`; }).join("")}
   </div></div></div>`;
 };
 
@@ -969,8 +969,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "1.8";
+const APP_VERSION = "1.9";
 const CHANGES = [
+  ["1.9", ["מחיקת פרויקט ישר ממסך הבית: כפתור 🗑 בפינת הכרטיס."]],
   ["1.8", ["בהגדרות: מצב ⚡ עצמאי, בלי Claude. כשצריך רעיון או שדרוג, אפשר להפעיל את Claude רק לפעם הזו.", "\"אודות\" מעודכן."]],
   ["1.7", ["⚡ פירוק מהיר בלי Claude: מזהה סצנות, לוקיישנים, דמויות ודיאלוגים בשנייה, בחינם ובלי אינטרנט.", "⚡ כיסוי בסיסי: רשימת שוטים וסטוריבורד בסיסיים בלי Claude."]],
   ["1.6", ["בעלילתי, תדמית, שיווק, פרומו, קליפ וכנס: בוחרים כמה ימי צילום וכמה שעות ביום, והפירוק, השוטים והרעיונות מותאמים לזה.", "בלו\"ז: שינוי ימים ושעות, והתראה אם התוכנית חורגת."]],
@@ -1270,7 +1271,13 @@ const ACTIONS = {
   x(el) { doExport(el.dataset.k, false); },
   xs(el) { doExport(el.dataset.k, true); },
   import() { $("#fJson").click(); },
-  "proj-del"(el) { if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.textContent = "לחץ שוב כדי למחוק את הפרויקט"; return; } IDB.del(P.id); projects = projects.filter(p => p !== P); P = null; go("home"); },
+  "home-del"(el) {
+    const p = projects.find(x => x.id === el.dataset.id); if (!p) return;
+    openSheet(`<h2>🗑 למחוק את "${esc(p.title || "פרויקט ללא שם")}"?</h2><p>הפרויקט, ההערות והרפרנסים שלו יימחקו מהמכשיר. אי אפשר לבטל.</p><p class="muted small">רוצה לשמור עותק? קודם "שמירה וגיבוי" מהתפריט ☰.</p>
+      <div class="row"><button class="btn danger" id="hdYes">מחק</button><button class="btn" data-act="sheet-close">ביטול</button></div>`);
+    $("#hdYes").onclick = () => { deleteProject(p); closeSheet(); toast("הפרויקט נמחק"); render(); };
+  },
+  "proj-del"(el) { if (el.dataset.armed !== "1") { el.dataset.armed = "1"; el.textContent = "לחץ שוב כדי למחוק את הפרויקט"; return; } deleteProject(P); go("home"); },
   "key-save"() { CFG.key = $("#apikey").value.trim(); if (CFG.key) CFG.mode = "api"; saveCfg(); render(); $("#keymsg").innerHTML = '<span class="ok">נשמר.</span>'; },
   "key-test"() {
     CFG.key = $("#apikey").value.trim(); saveCfg(); const m = $("#keymsg");
@@ -1306,6 +1313,11 @@ document.addEventListener("input", e => {
   if (e.target.id === "wtext" && ui.wiz) ui.wiz.text = e.target.value;
 });
 
+function deleteProject(p) {
+  IDB.del(p.id).catch(() => {});
+  (p.scenes || []).forEach(s => (s.shots || []).forEach(x => (x.refs || []).forEach(r => { if (r.img) IDB.delImg(r.img).catch(() => {}); })));
+  projects = projects.filter(x => x !== p); if (P === p) P = null;
+}
 function applyShots(s, r) {
   const keep = s.shots.filter(x => x.status !== "left" || (x.refs || []).length);
   s.shots = keep.concat((Array.isArray(r.shots) ? r.shots : []).map(x => normShot(x, "")));
@@ -1548,7 +1560,9 @@ function demo() {
 (async function boot() {
   $("#railmark").innerHTML = LOGO("r");
   try { await IDB.open(); projects = (await IDB.all()) || []; } catch (e) { toast("האחסון במכשיר לא זמין. הפרויקטים לא יישמרו אחרי סגירה."); }
-  if (!projects.length) { const d = demo(); projects.push(d); P = d; save(); }
+  let seeded = false; try { seeded = localStorage.getItem("prolab-seeded") === "1"; localStorage.setItem("prolab-seeded", "1"); } catch (_) {}
+  if (!projects.length && !seeded) { const d = demo(); projects.push(d); P = d; save(); }
+  else if (!projects.length) P = null;
   else P = projects.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0))[0];
   projects.forEach(p => { p.notes = p.notes || []; p.whisky = p.whisky || {}; (p.scenes || []).forEach(s => s.shots.forEach(x => { x.refs = x.refs || []; x.flags = x.flags || {}; })); });
   const v = location.hash.slice(1); ui.view = VIEWS[v] && v !== "cheers" ? v : "home";
