@@ -107,6 +107,7 @@ async function hydrateImages(root = document) {
 }
 
 /* ================= UI state ================= */
+const ACTIONS_EXTRA = {};
 const ui = {
   view: "home", sub: "scenes", scene: null, char: null, loc: null, q: "", edit: null, editHead: false,
   shScene: null, aiScene: null, tone: "drama", setDay: 1, setShot: null, wiz: null, planDay: 0
@@ -827,6 +828,79 @@ VIEWS.settings = () => {
   </div></div></div>`;
 };
 
+/* ================= side menu ================= */
+const APP_VERSION = "1.1";
+const CHANGES = [
+  ["1.1", ["תפריט צד עם שיתוף האפליקציה, הוספה למסך הבית, מה חדש ואודות.", "שמירה וגיבוי ישירות מהתפריט."]],
+  ["1.0", ["גרסה ראשונה: פירוק תסריט עם עריכה, דמויות ולוקיישנים.", "✦ שדרוג סצנה לפי טון, שוטים וסטוריבורד עם רפרנסים מהמצלמה.", "לו\"ז צילום, מצב סט עם סימוני סאונד, 🥃 Whisky Shot ו-🥂 צ'ירס.", "מעברים לעריכה וייצוא ל-PDF, HTML לסט, Word ו-CSV."]]];
+const DICON = {
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
+  script: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7M9 15h7"/></svg>',
+  shots: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3"/></svg>',
+  plan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>',
+  set: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8l16-4v4H4z"/><rect x="4" y="8" width="16" height="12" rx="1"/></svg>',
+  cut: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/></svg>',
+  save: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
+  install: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 7v7M9 11l3 3 3-3"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
+  news: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7.5v.5"/></svg>'};
+function openMenu() {
+  const it = (act, ic, t, sub, opt = {}) => `<button class="ditem ${opt.on ? "on" : ""}" data-act="${act}" ${opt.v ? `data-v="${opt.v}"` : ""} ${opt.dis ? "disabled" : ""}>${DICON[ic]}<span><b>${t}</b>${sub ? `<span>${sub}</span>` : ""}</span></button>`;
+  const on = v => ui.view === v || ({ new: "home", ai: "script", whisky: "set", cheers: "set" }[ui.view] === v);
+  const noP = !P;
+  $("#drawer").innerHTML = `<div class="dhead"><div class="logo">${LOGO("d")}<div><div class="wm">Pro<em>Lab</em></div><small>by G.Z MOTION LAB</small></div></div><p>פירוק תסריט, שוטים ולו"ז צילום</p></div>
+    ${it("dgo", "home", "בית", "כל הפרויקטים שלך", { v: "home", on: on("home") })}
+    ${it("dgo", "script", "הפרויקט שלי", P ? esc(P.title || "תסריט") + " · תסריט, דמויות ולוקיישנים" : "תסריט, דמויות ולוקיישנים", { v: "script", on: on("script"), dis: noP })}
+    ${it("dgo", "shots", "שוטים וסטוריבורד", "שוטים, ציורים ורפרנסים", { v: "shots", on: on("shots"), dis: noP })}
+    ${it("dgo", "plan", 'לו"ז צילום', "סדר צילום, ימים וחובה לצלם", { v: "plan", on: on("plan"), dis: noP })}
+    ${it("dgo", "set", "מצב סט", "צילום, סימונים ו-Whisky Shot", { v: "set", on: on("set"), dis: noP })}
+    ${it("dgo", "cut", "עריכה וייצוא", "מעברים, PDF ושיתוף לצוות", { v: "cut", on: on("cut"), dis: noP })}
+    ${it("m-backup", "save", "שמירה וגיבוי", "שומרים קובץ גיבוי של הפרויקט וממשיכים במכשיר אחר", { dis: noP })}
+    ${it("m-new", "plus", "פרויקט חדש", "")}
+    <div class="dsep"></div>
+    ${it("m-share", "share", "שיתוף האפליקציה", "שלח קישור לחברים")}
+    ${it("m-install", "install", "הוספה למסך הבית", "אייקון כמו אפליקציה")}
+    ${it("dgo", "gear", "הגדרות", "חיבור ל-Claude", { v: "settings", on: on("settings") })}
+    ${it("m-news", "news", "מה חדש", "עדכוני גרסה · " + APP_VERSION)}
+    ${it("m-about", "info", "אודות", "")}`;
+  $("#drawerwrap").hidden = false;
+  setTimeout(() => $("#drawer .ditem")?.focus(), 30);
+}
+function closeMenu() { $("#drawerwrap").hidden = true; }
+$("#drawerwrap").addEventListener("click", e => { if (e.target.id === "drawerwrap") closeMenu(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#drawerwrap").hidden) closeMenu(); else if (!$("#sheetwrap").hidden) closeSheet(); } });
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; });
+window.addEventListener("appinstalled", () => { installEvt = null; toast("ProLab הותקנה במסך הבית ✓"); });
+const APP_URL = "https://gzfilm.github.io/prolab/";
+Object.assign(ACTIONS_EXTRA, {
+  menu() { openMenu(); },
+  dgo(el) { closeMenu(); commitEdit(); go(el.dataset.v); },
+  "m-new"() { closeMenu(); ACTIONS.new(); },
+  "m-backup"() { closeMenu(); doExport("json", !!navigator.canShare); },
+  async "m-share"() {
+    closeMenu();
+    const data = { title: "ProLab", text: "ProLab · פירוק תסריט, שוטים ולו\"ז צילום · by G.Z MOTION LAB", url: APP_URL };
+    if (navigator.share) { try { await navigator.share(data); return; } catch (e) { if (e && e.name === "AbortError") return; } }
+    shareText(data.text + "\n" + APP_URL);
+  },
+  async "m-install"() {
+    closeMenu();
+    if (matchMedia("(display-mode: standalone)").matches) { toast("ProLab כבר מותקנת ופתוחה כאפליקציה ✓"); return; }
+    if (installEvt) { installEvt.prompt(); try { await installEvt.userChoice; } catch (_) {} installEvt = null; return; }
+    openSheet(`<h2>הוספה למסך הבית</h2><ol class="steps-list"><li>ב-Chrome לוחצים על התפריט ⋮ בפינה.</li><li>בוחרים <b>"הוסף למסך הבית"</b> או <b>"התקן אפליקציה"</b>.</li><li>ProLab תופיע עם אייקון משלה ותיפתח במסך מלא.</li></ol><p class="muted small">באייפון: כפתור השיתוף ב-Safari, ואז "הוסף למסך הבית".</p><div class="row"><button class="btn" data-act="sheet-close">הבנתי</button></div>`);
+  },
+  "m-news"() { closeMenu(); openSheet(`<h2>מה חדש</h2><div class="changes">${CHANGES.map(([v, l]) => `<div><h3>גרסה ${v}</h3><ul>${l.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div><div class="row"><button class="btn" data-act="sheet-close">סגור</button></div>`); },
+  "m-about"() { closeMenu(); openSheet(`<div class="logo">${LOGO("ab")}<div><div class="wm">Pro<em>Lab</em></div><small>by G.Z MOTION LAB</small></div></div>
+    <p>ProLab היא מעבדת ההפקה של גל זיו: מהתסריט ועד יום הצילום. מפרקים תסריט, בונים שוטים וסטוריבורד, מסדרים לו"ז, ומנהלים את הסט עד ה-Whisky Shot.</p>
+    <p>במאי, צלם ועורך. סרטי תדמית, שיווק, כנסים, קליפים, בר/בת מצווה ועלילתי.</p>
+    <p class="muted small">גרסה ${APP_VERSION} · ההצעות החכמות מבוססות על Claude של Anthropic · הנתונים נשמרים רק במכשיר שלך.</p>
+    <div class="row"><button class="btn" data-act="sheet-close">סגור</button></div>`); }
+});
+
 /* ================= render + routing ================= */
 const NEEDS_P = ["script", "shots", "plan", "set", "cut", "ai", "whisky", "cheers"];
 function render() {
@@ -1022,7 +1096,8 @@ document.addEventListener("click", e => {
   const g = e.target.closest("[data-go]"); if (g) { e.preventDefault(); commitEdit(); go(g.dataset.go); return; }
   const v = e.target.closest(".rail [data-view]"); if (v) { commitEdit(); go(v.dataset.view); return; }
   const a = e.target.closest("[data-act]");
-  if (a && ACTIONS[a.dataset.act] && !(a.tagName === "SELECT")) { if (a.disabled) return; ACTIONS[a.dataset.act](a, e); }
+  const fn = a && (ACTIONS[a.dataset.act] || ACTIONS_EXTRA[a.dataset.act]);
+  if (fn && a.tagName !== "SELECT") { if (a.disabled) return; fn(a, e); }
 });
 document.addEventListener("change", e => {
   const t = e.target;
