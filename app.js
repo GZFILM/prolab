@@ -508,7 +508,7 @@ const VIEWS = {};
 
 VIEWS.home = () => {
   const list = projects.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0));
-  return `<div class="col">${bar(`<span class="logo">${LOGO("h")}<span><span class="wm">Pro<em>Lab</em></span><small>by G.Z MOTION LAB</small></span></span>`, "", `<button class="btn primary" data-act="new">+ פרויקט חדש</button>`)}
+  return `<div class="col">${bar(`<span class="logo"><span><span class="wm">Pro<em>Lab</em></span><small>by G.Z MOTION LAB</small></span></span>`, "", `<button class="btn primary" data-act="new">+ פרויקט חדש</button>`)}
   <div class="body"><div class="projgrid">
     <button class="newcard" data-act="new"><b>+</b>פרויקט חדש</button>
     ${list.map(p => { const pr = progressOf(p.scenes || []); return `<button class="card proj" data-act="open" data-id="${p.id}"><span class="thumb">${thumbFor(p)}</span><span class="in"><b>${esc(p.title || "פרויקט ללא שם")}${p.demo ? ' <span class="tag n">דוגמה</span>' : ""}</b><span class="muted small">${TYPE_LABEL[p.type] || ""} · ${(p.scenes || []).length} סצנות</span><span class="prog"><i style="width:${pr.pct}%"></i></span><span class="mono muted">${pr.pct === 100 ? "הושלם ✓" : pr.pct ? pr.pct + "% צולם" : "מוכן לצילום"}</span></span></button>`; }).join("")}
@@ -829,8 +829,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "1.2";
+const APP_VERSION = "1.3";
 const CHANGES = [
+  ["1.3", ["השם ProLab צמוד ללוגו בסרגל.", "עדכונים נטענים תמיד במלואם, כדי שכל הכפתורים יעבדו אחרי עדכון."]],
   ["1.2", ["נגיעה בתמונת רפרנס מגדילה אותה ל-3 שניות. נגיעה בתמונה המוגדלת משאירה אותה פתוחה."]],
   ["1.1", ["תפריט צד עם שיתוף האפליקציה, הוספה למסך הבית, מה חדש ואודות.", "שמירה וגיבוי ישירות מהתפריט."]],
   ["1.0", ["גרסה ראשונה: פירוק תסריט עם עריכה, דמויות ולוקיישנים.", "✦ שדרוג סצנה לפי טון, שוטים וסטוריבורד עם רפרנסים מהמצלמה.", "לו\"ז צילום, מצב סט עם סימוני סאונד, 🥃 Whisky Shot ו-🥂 צ'ירס.", "מעברים לעריכה וייצוא ל-PDF, HTML לסט, Word ו-CSV."]]];
@@ -1378,5 +1379,9 @@ function demo() {
   const v = location.hash.slice(1); ui.view = VIEWS[v] && v !== "cheers" ? v : "home";
   history.replaceState(null, "", "#" + ui.view);
   render();
-  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    const hadCtl = !!navigator.serviceWorker.controller; let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadCtl && !reloaded) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => r.update()).catch(() => {});
+  }
 })();
