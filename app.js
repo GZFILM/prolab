@@ -183,7 +183,17 @@ function askManual(prompt, label) {
 $("#mCopy").onclick = async () => { const t = $("#mPrompt"); try { await navigator.clipboard.writeText(t.value); $("#mCopied").textContent = "הועתק ✓"; } catch (_) { t.focus(); t.select(); $("#mCopied").textContent = "סומן. העתק ידנית."; } };
 $("#mGo").onclick = () => { try { const r = parseJSON($("#mAnswer").value); $("#manual").hidden = true; const m = manualRes; manualRes = null; m && m.res(r); } catch (_) { $("#mErr").textContent = "לא הצלחתי לקרוא את התשובה. ודא שהעתקת את כל התשובה של Claude, כולל הסוגריים { }."; } };
 $("#mCancel").onclick = () => { $("#manual").hidden = true; const m = manualRes; manualRes = null; m && m.rej({ code: "cancelled" }); };
+function askLocalChoice(prompt, label) {
+  return new Promise((res, rej) => {
+    openSheet(`<h2>✦ זה צריך את Claude</h2><p>${esc(label)}: החלק הזה דורש הבנה של התסריט, ולכן הוא עובד עם Claude.</p><p class="muted small">אתה במצב ⚡ עצמאי. אפשר להשתמש ב-Claude רק הפעם (העתקה ל-claude.ai והדבקה), או להחליף מצב בהגדרות.</p>
+      <div class="row"><button class="btn primary" id="lcGo">✦ השתמש ב-Claude הפעם</button>${CFG.key ? `<button class="btn" id="lcApi">✦ עם מפתח ה-API</button>` : ""}<button class="btn" id="lcNo">ביטול</button></div>`);
+    $("#lcGo").onclick = () => { closeSheet(); askManual(prompt, label).then(res, rej); };
+    if ($("#lcApi")) $("#lcApi").onclick = () => { closeSheet(); askAPI(prompt, label).then(res, rej); };
+    $("#lcNo").onclick = () => { closeSheet(); rej({ code: "cancelled" }); };
+  });
+}
 async function ask(prompt, label) {
+  if (CFG.mode === "local") return askLocalChoice(prompt, label);
   if (CFG.mode === "api") {
     if (!CFG.key) { go("settings"); sayStatus("כדי לעבוד במצב אוטומטי צריך להדביק מפתח API.", true); throw { code: "nokey" }; }
     if (!window.Anthropic) { sayStatus("רכיב החיבור ל-Claude לא נטען. בדוק את האינטרנט ורענן.", true); throw { code: "nosdk" }; }
@@ -657,7 +667,7 @@ VIEWS.new = () => {
     <label class="row"><span class="lbl">Call</span><input type="time" id="wcall" value="${esc(w.call)}"></label></div>
     <p class="muted small">${TYPE_LABEL[w.type]} · ${w.src === "idea" ? "רעיון" : w.text.length.toLocaleString() + " תווים"}</p>
     ${w.type === "mitzvah" ? `<p class="callout">בר/בת מצווה: כל הסרט ביום אחד, עד ${w.hours} שעות. כל סצנה מקבלת 10-20 דקות, והשוטים, הרעיונות והמעברים מותאמים לזמן הזה.</p>` : `<p class="callout">${w.days === 1 ? "יום אחד" : w.days + " ימים"} × ${w.hours} שעות. הפירוק, השוטים, הרעיונות והמעברים יותאמו לזמן הזה.</p>`}
-    <div class="row"><button class="btn" data-act="wiz-back">→ חזרה</button>${w.src === "idea" ? "" : `<button class="btn primary" data-act="wiz-quick">⚡ פירוק מהיר</button>`}<button class="btn ${w.src === "idea" ? "primary" : "ai"}" data-act="wiz-run" data-ai>✦ פירוק חכם עם Claude</button></div>
+    <div class="row"><button class="btn" data-act="wiz-back">→ חזרה</button>${w.src === "idea" ? "" : `<button class="btn primary" data-act="wiz-quick">⚡ פירוק מהיר (עצמאי)</button>`}<button class="btn ${w.src === "idea" ? "primary" : "ai"}" data-act="wiz-run" data-ai>✦ פירוק חכם עם Claude</button></div>
     <p class="muted small">${w.src === "idea" ? "רעיון בלי תסריט צריך את Claude כדי לבנות מבנה של סצנות." : "<b>⚡ פירוק מהיר</b>: מיידי, בחינם ובלי אינטרנט. מזהה סצנות, לוקיישנים, דמויות ודיאלוגים בתסריט מסודר. <b>✦ פירוק חכם</b>: Claude מבין גם תסריט לא מסודר, כותב תקצירים ובונה רשימת \"חובה לצלם\"."}</p>`;
   return `<div class="col">${bar("פרויקט חדש", "", steps, `<button class="btn ghost" data-go="home" aria-label="סגור">✕</button>`)}<div class="body">${body}</div></div>`;
 };
@@ -943,8 +953,9 @@ VIEWS.settings = () => {
   return `<div class="col">${bar("הגדרות", "חיבור ל-Claude ומידע", `<button class="btn" data-act="set-close">✕ סגור</button>`)}
   <div class="body"><div class="setgrid">
     <div class="logo">${LOGO("s")}<div><div class="wm">Pro<em>Lab</em></div><small>by G.Z MOTION LAB</small></div></div>
-    <h2>איך ProLab מדבר עם Claude</h2>
-    <label class="radio"><input type="radio" name="mode" value="manual" ${CFG.mode !== "api" ? "checked" : ""}><span><b>ידני דרך claude.ai</b> · כלול במנוי שלך<br><span class="small muted">בכל שלב האפליקציה מכינה בקשה. מעתיקים אותה לשיחה ב-claude.ai ומדביקים בחזרה את התשובה.</span></span></label>
+    <h2>איך ProLab מפרק ובונה את התוכנית</h2>
+    <label class="radio"><input type="radio" name="mode" value="local" ${CFG.mode === "local" ? "checked" : ""}><span><b>⚡ עצמאי, בלי Claude</b> · מיידי, בחינם, בלי אינטרנט<br><span class="small muted">פירוק מהיר של תסריט מסודר: סצנות, לוקיישנים, דמויות, דיאלוגים ולו"ז, וכיסוי בסיסי של שוטים עם סטוריבורד. רעיונות, שדרוגים ומעברים דורשים Claude, ואפשר להפעיל אותו בלחיצה כשצריך.</span></span></label>
+    <label class="radio"><input type="radio" name="mode" value="manual" ${CFG.mode === "manual" || !CFG.mode ? "checked" : ""}><span><b>ידני דרך claude.ai</b> · כלול במנוי שלך<br><span class="small muted">בכל שלב האפליקציה מכינה בקשה. מעתיקים אותה לשיחה ב-claude.ai ומדביקים בחזרה את התשובה.</span></span></label>
     <label class="radio"><input type="radio" name="mode" value="api" ${CFG.mode === "api" ? "checked" : ""}><span><b>אוטומטי עם מפתח API</b> · לחיצה אחת, בלי העתקות<br><span class="small muted">צריך מפתח מ-console.anthropic.com. זה חשבון נפרד מהמנוי, ומשלמים לפי שימוש.</span></span></label>
     <div class="row"><label class="lbl" for="apikey">מפתח API</label><input type="password" id="apikey" style="flex:1;min-width:220px" placeholder="sk-ant-..." value="${esc(CFG.key)}" autocomplete="off"><button class="btn" data-act="key-save">שמור</button><button class="btn" data-act="key-test" data-ai>בדוק חיבור</button></div>
     <p class="small" id="keymsg"></p>
@@ -958,8 +969,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "1.7";
+const APP_VERSION = "1.8";
 const CHANGES = [
+  ["1.8", ["בהגדרות: מצב ⚡ עצמאי, בלי Claude. כשצריך רעיון או שדרוג, אפשר להפעיל את Claude רק לפעם הזו.", "\"אודות\" מעודכן."]],
   ["1.7", ["⚡ פירוק מהיר בלי Claude: מזהה סצנות, לוקיישנים, דמויות ודיאלוגים בשנייה, בחינם ובלי אינטרנט.", "⚡ כיסוי בסיסי: רשימת שוטים וסטוריבורד בסיסיים בלי Claude."]],
   ["1.6", ["בעלילתי, תדמית, שיווק, פרומו, קליפ וכנס: בוחרים כמה ימי צילום וכמה שעות ביום, והפירוק, השוטים והרעיונות מותאמים לזה.", "בלו\"ז: שינוי ימים ושעות, והתראה אם התוכנית חורגת."]],
   ["1.5", ["בר/בת מצווה: כל הסרט ביום אחד של עד 6 שעות, 10-20 דקות לסצנה.", "השוטים, הרעיונות, השדרוגים, המעברים וה-Whisky Shot מותאמים לתקציב הזמן.", "כפתור ⏱ להתאמת כל הסצנות לשעות היום."]],
@@ -1032,8 +1044,16 @@ Object.assign(ACTIONS_EXTRA, {
   },
   "m-news"() { closeMenu(); openSheet(`<h2>מה חדש</h2><div class="changes">${CHANGES.map(([v, l]) => `<div><h3>גרסה ${v}</h3><ul>${l.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div><div class="row"><button class="btn" data-act="sheet-close">סגור</button></div>`); },
   "m-about"() { closeMenu(); openSheet(`<div class="logo">${LOGO("ab")}<div><div class="wm">Pro<em>Lab</em></div><small>by G.Z MOTION LAB</small></div></div>
-    <p>ProLab היא מעבדת ההפקה של גל זיו: מהתסריט ועד יום הצילום. מפרקים תסריט, בונים שוטים וסטוריבורד, מסדרים לו"ז, ומנהלים את הסט עד ה-Whisky Shot.</p>
-    <p>במאי, צלם ועורך. סרטי תדמית, שיווק, כנסים, קליפים, בר/בת מצווה ועלילתי.</p>
+    <p>מהתסריט ועד סוף יום הצילום, באפליקציה אחת:</p>
+    <ul class="steps-list">
+      <li><b>⚡ פירוק עצמאי</b> של תסריט: סצנות, לוקיישנים, דמויות ודיאלוגים. מיידי, בחינם ובלי אינטרנט.</li>
+      <li><b>✦ פירוק חכם עם Claude</b> גם לתסריט לא מסודר או לרעיון של לקוח.</li>
+      <li>עריכת התסריט, ותצוגה לפי סצנה, לפי דמות ולפי לוקיישן.</li>
+      <li>שוטים וסטוריבורד, עם רפרנסים מהמצלמה.</li>
+      <li>לו"ז צילום לפי ימים ושעות, ורשימת "חובה לצלם".</li>
+      <li>מצב סט, סימוני סאונד, 🥃 Whisky Shot ו-🥂 צ'ירס.</li>
+      <li>רעיונות, שדרוגים ומעברים לעריכה, וייצוא ל-PDF, Word ו-HTML לצוות.</li>
+    </ul>
     <p class="muted small">גרסה ${APP_VERSION} · ההצעות החכמות מבוססות על Claude של Anthropic · הנתונים נשמרים רק במכשיר שלך.</p>
     <div class="row"><button class="btn" data-act="sheet-close">סגור</button></div>`); }
 });
@@ -1174,9 +1194,11 @@ const ACTIONS = {
   shs(el) { ui.shScene = el.dataset.id; rerender(); },
   gen1(el) {
     const s = P.scenes.find(x => x.id === el.dataset.id) || shScene();
+    if (CFG.mode === "local") { ui.shScene = s.id; ACTIONS["quick-shots"]({ dataset: {} }); if (ui.view !== "shots") go("shots"); return; }
     runAI(async () => { const r = await ask(pShots(s), "יוצר שוטים לסצנה " + s.n); applyShots(s, r); save(); ui.shScene = s.id; if (ui.view !== "shots") go("shots"); else render(); });
   },
   genall() {
+    if (CFG.mode === "local") { ACTIONS["quick-shots"]({ dataset: { all: "1" } }); return; }
     runAI(async () => {
       for (const s of P.scenes.filter(x => !x.shots.length)) { ui.shScene = s.id; render(); const r = await ask(pShots(s), `יוצר שוטים לסצנה ${s.n} מתוך ${P.scenes.length}`); applyShots(s, r); save(); render(); }
     });
