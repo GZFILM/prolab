@@ -197,7 +197,7 @@ const charList = () => (P.characters || []).map(c => c.name + " (" + c.role + ")
 function sceneText(s, numbered) {
   return (s.blocks || []).map((b, i) => (numbered ? i + " " : "") + (b.t === "d" ? `[dialogue: ${b.c}${b.p ? ", " + b.p : ""}] ${b.x}` : `[action] ${b.x}`)).join("\n").slice(0, 7000);
 }
-function pBreakdown(text, type) {
+function pBreakdown(text, type, w) {
   return `You are an experienced 1st AD and script supervisor preparing a production breakdown for G.Z MOTION LAB, an Israeli director / DP / editor.
 FILM TYPE: ${TYPE_DESC[type]}
 ${TYPE_HINT[type] ? "HINT: " + TYPE_HINT[type] + "\n" : ""}
@@ -207,7 +207,7 @@ TASK: Break the INPUT into scenes. The input may be a formatted screenplay, a me
 - intExt: "INT" | "EXT" | "INT/EXT". time: one of "SUNRISE","MORNING","DAY","SUNSET","EVENING","NIGHT".
 - characters: role "lead" (the protagonist, usually one), "supporting" or "extra". In client films real people (CEO, speakers, the bar mitzvah kid, parents, the singer) are characters.
 - blocks: the scene text split into action {"t":"a","x":...} and dialogue {"t":"d","c":character name exactly as in characters,"p":optional parenthetical,"x":the line}. Keep dialogue verbatim in its original language. Lightly condense long action. Inferred segments get 1-3 action blocks describing what happens.
-- summary: one short Hebrew sentence. estMinutes: realistic minutes to shoot the scene on set including lighting and setup (integer).${type === "mitzvah" ? "\n- BAR/BAT MITZVAH TIME BUDGET: the whole script is shot in ONE day of 4-6 hours (max 6) by an experienced, fast director: a 13-page script takes 4-6 hours. Give every scene estMinutes between 10 and 20 (typically 15). Do not merge or drop scenes to save time." : ""}
+- summary: one short Hebrew sentence. estMinutes: realistic minutes to shoot the scene on set including lighting and setup (integer).${type === "mitzvah" ? "\n- BAR/BAT MITZVAH TIME BUDGET: the whole script is shot in ONE day of 4-6 hours (max 6) by an experienced, fast director: a 13-page script takes 4-6 hours. Give every scene estMinutes between 10 and 20 (typically 15). Do not merge or drop scenes to save time." : w && w.days ? `\n- TIME BUDGET: the shoot is planned for ${w.days} day(s) of about ${w.hours} hours each. Size estMinutes so that the whole script fits that time (after setup, meals and location moves); bigger scenes get more, small ones less. Do not drop scenes to save time.` : ""}
 - All descriptive text (title, logline, summary, desc) in Hebrew. Keep industry terms (INT/EXT, DAY/NIGHT) in English.
 Reply with ONLY JSON in exactly this shape:
 {"title":"short Hebrew title","logline":"one Hebrew sentence","inferred":false,"characters":[{"name":"...","role":"lead","desc":"short Hebrew"}],"scenes":[{"n":1,"heading":"INT. LOCATION - DAY","location":"...","intExt":"INT","time":"DAY","summary":"...","characters":["..."],"estMinutes":40,"blocks":[{"t":"a","x":"..."},{"t":"d","c":"...","p":"","x":"..."}]}]}
@@ -231,7 +231,7 @@ In scene: ${(s.characters || []).join(", ")}
 Text:
 ${sceneText(s)}
 ${notes ? "Director's notes for this scene:\n" + notes + "\n" : ""}
-${isMitz() ? `Plan 2-4 shots that cover the scene within its ${s.estMinutes || sceneBudget()}-minute budget (all shot minutes together must not exceed it). Lean, fast coverage: quick setups, handheld or gimbal where it helps, no complex rigs; the most important moment gets the best shot.` : "Plan 3-8 shots that cover the scene efficiently on set (order them by camera setup, the way you would shoot them)."}${mitzRules()}
+${isMitz() ? `Plan 2-4 shots that cover the scene within its ${s.estMinutes || sceneBudget()}-minute budget (all shot minutes together must not exceed it). Lean, fast coverage: quick setups, handheld or gimbal where it helps, no complex rigs; the most important moment gets the best shot.` : budgeted() ? `Plan ${shotCountHint(s.estMinutes || sceneBudget())} shots that cover the scene within its ${s.estMinutes || sceneBudget()}-minute budget (all shot minutes together must not exceed it), ordered by camera setup, the way you would shoot them.` : "Plan 3-8 shots that cover the scene efficiently on set (order them by camera setup, the way you would shoot them)."}${budgetRules()}
 - size: one of EWS, WS, FS, MS, 2-SHOT, OTS, MCU, CU, ECU, INSERT
 - angle: eye | low | high | overhead | dutch
 - move: static | push-in | pull-out | pan-left | pan-right | tilt-up | tilt-down | tracking | handheld | crane | orbit
@@ -250,7 +250,7 @@ function pTransitions() {
     const sh = (s.shots || []).filter(x => x.status !== "cut");
     return `${s.n} | ${s.heading} | ${s.summary} | first shot: ${sh[0] ? sh[0].size + " " + sh[0].desc : "-"} | last shot: ${sh.length ? sh[sh.length - 1].size + " " + sh[sh.length - 1].desc : "-"}`;
   }).join("\n");
-  return `You are a film editor. For each pair of consecutive scenes in story order, suggest one smart transition that makes the cut connect: match cut, graphic match, motion continuation, sound bridge, J-cut, L-cut, recurring object, whip pan, light or color match, and so on. Use a plain dissolve only when it is truly best.${isMitz() ? " This is a fast one-day Bar/Bat Mitzvah shoot: prefer transitions that need at most one quick extra shot (an insert or a few seconds of sound)." : ""}
+  return `You are a film editor. For each pair of consecutive scenes in story order, suggest one smart transition that makes the cut connect: match cut, graphic match, motion continuation, sound bridge, J-cut, L-cut, recurring object, whip pan, light or color match, and so on. Use a plain dissolve only when it is truly best.${isMitz() ? " This is a fast one-day Bar/Bat Mitzvah shoot: prefer transitions that need at most one quick extra shot (an insert or a few seconds of sound)." : budgeted() ? " The shoot has a fixed time budget: prefer transitions that need little or no extra shooting time." : ""}
 For each, add "shoot": what the crew must remember to capture on set so the transition works (Hebrew, short).
 FILM TYPE: ${TYPE_DESC[P.type]}
 FILM: ${P.title} — ${P.logline || ""}
@@ -262,7 +262,7 @@ function pMust() {
   const rows = P.scenes.map(s => `${s.n}. ${s.heading} — ${s.summary}`).join("\n");
   return `You are an experienced producer and director of this kind of film: ${TYPE_DESC[P.type]}.
 Write a practical "Must-Shoot" checklist for the shoot, based on the breakdown below. Group it using groups like: ${MUST_GROUPS[P.type]}.
-Each item: concrete and short, in Hebrew. priority "must" or "nice". 12-28 items in total.${mitzRules("Mark as \"must\" only what fits the day; the rest is \"nice\".")}
+Each item: concrete and short, in Hebrew. priority "must" or "nice". 12-28 items in total.${budgetRules("Mark as \"must\" only what fits the day; the rest is \"nice\".")}
 FILM: ${P.title} — ${P.logline || ""}
 PEOPLE: ${P.characters.map(c => c.name).join(", ")}
 SCENES:
@@ -283,7 +283,7 @@ Numbered lines:
 ${sceneText(s, true)}
 NEXT SCENE: ${next ? next.n + ". " + next.heading + " — " + next.summary : "none (this is the last scene)"}
 
-${mitzRules("Every suggestion must be shootable inside the scene's budget, at most about 5 extra minutes; prefer upgrades that cost no time: a sharper line, a smarter angle, a prop, a sound idea.")}Give 4-6 specific suggestions that fit the tone, mixing these kinds:
+${budgetRules("Every suggestion must be shootable inside the scene's budget, at most about 5 extra minutes; prefer upgrades that cost no time: a sharper line, a smarter angle, a prop, a sound idea.")}Give 4-6 specific suggestions that fit the tone, mixing these kinds:
 - "punch": a sharper / funnier / more emotional version of ONE existing line. apply: {"type":"replace_line","index":<line number>,"text":"the new line","speaker":"character name, or empty for action"}
 - "add": a new short moment (1-3 lines) to insert. apply: {"type":"add_lines","after":<line number, or -1 for the start>,"lines":[{"t":"a" or "d","c":"character name or empty","x":"..."}]}
 - "shot": an original creative shot. apply: {"type":"add_shot","shot":{"size":"CU","angle":"low","move":"push-in","lens":"50mm","desc":"Hebrew","purpose":"Hebrew","minutes":10,"figures":[{"name":"...","x":50}],"prop":""}}
@@ -306,7 +306,7 @@ TODAY (scenes and shots with status):
 ${lines.join("\n")}
 OPEN NOTES:
 ${notes || "none"}
-${mitzRules("Only quick grabs: each suggestion should take 2-5 minutes.")}Suggest only what is clearly useful before wrap (3-7 items): forgotten coverage (wides, cutaways, inserts, establishing), sound (room tone, wild tracks, pickup lines), narration / voice-over lines worth recording now, inserts or effects that will help the edit. Do not repeat flagged sound pickups or open notes, they are listed separately. Hebrew.
+${budgetRules("Only quick grabs: each suggestion should take 2-5 minutes.")}Suggest only what is clearly useful before wrap (3-7 items): forgotten coverage (wides, cutaways, inserts, establishing), sound (room tone, wild tracks, pickup lines), narration / voice-over lines worth recording now, inserts or effects that will help the edit. Do not repeat flagged sound pickups or open notes, they are listed separately. Hebrew.
 Reply with ONLY JSON: {"items":[{"kind":"shot","title":"...","text":"..."}]} where kind is one of shot, sound, vo, insert, other.`;
 }
 
@@ -403,38 +403,48 @@ const liveShots = s => (s.shots || []).filter(x => x.status !== "cut");
 function sceneMin(s) { return s.shots && s.shots.length ? liveShots(s).reduce((a, x) => a + (+x.minutes || 0), 0) : (+s.estMinutes || 30); }
 function toMin(t) { const [h, m] = (t || "07:00").split(":").map(Number); return h * 60 + (m || 0); }
 function hhmm(t) { t = ((Math.round(t) % 1440) + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); }
-/* Bar/Bat Mitzvah: one fast day, max 6h, 10-20 minutes per scene */
+/* Time budget. Bar/Bat Mitzvah: one fast day, max 6h, 10-20 min per scene.
+   Other types: the director sets shoot days x hours per day, and everything is fitted to it. */
 const MITZ = { maxH: 6, setup: 20, move: 15, min: 10, max: 20 };
-const isMitz = p => (p || P) && (p || P).type === "mitzvah";
-const hoursOpts = type => type === "mitzvah" ? [4, 5, 6] : [5, 6, 7, 8];
-function timeCfg() { return isMitz() ? { setup: MITZ.setup, move: MITZ.move, meal: false, oneDay: true } : { setup: SETUP, move: MOVE, meal: true, oneDay: false }; }
-function mitzAvail() {
+const isMitz = p => !!(p || P) && (p || P).type === "mitzvah";
+const hoursOpts = type => type === "mitzvah" ? [4, 5, 6] : [4, 5, 6, 8, 10, 12];
+const budgeted = p => !!(p || P) && (isMitz(p) || +(p || P).days > 0);
+function timeCfg() { return isMitz() ? { setup: MITZ.setup, move: MITZ.move, meal: false } : { setup: SETUP, move: MOVE, meal: true }; }
+const sceneRange = () => isMitz() ? [MITZ.min, MITZ.max] : [5, 120];
+const planDays = () => isMitz() ? 1 : Math.max(1, +P.days || 1);
+const planHours = () => isMitz() ? Math.min(+P.hours || 6, MITZ.maxH) : (+P.hours || 8);
+function availMin() {
+  const tc = timeCfg(), D = planDays(), H = planHours();
   const live = P.scenes.filter(s => s.status !== "cut");
   const locs = new Set(live.map(s => normLoc(s.location))).size;
-  return Math.min(+P.hours || 6, MITZ.maxH) * 60 - MITZ.setup - Math.max(0, locs - 1) * MITZ.move;
+  const meal = tc.meal && H >= 6 ? MEAL : 0;
+  return D * (H * 60 - tc.setup - meal) - Math.max(0, locs - D) * tc.move;
 }
-function sceneBudget() { const n = P.scenes.filter(s => s.status !== "cut").length || 1; return clamp(Math.floor(mitzAvail() / n), MITZ.min, MITZ.max); }
+function sceneBudget() { const n = P.scenes.filter(s => s.status !== "cut").length || 1; const [a, b] = sceneRange(); return clamp(Math.floor(availMin() / n), a, b); }
 function fitShots(s) {
-  if (!isMitz()) return;
+  if (!budgeted()) return;
   const b = s.estMinutes || sceneBudget(); const live = liveShots(s); const sum = live.reduce((a, x) => a + (+x.minutes || 0), 0);
-  if (sum > b) { const f = b / sum; live.forEach(x => x.minutes = Math.max(2, Math.round(x.minutes * f))); }
+  if (sum > b) { const f = b / sum; live.forEach(x => x.minutes = Math.max(2, Math.floor(x.minutes * f))); }
 }
-function fitMitz() {
-  if (!isMitz()) return;
-  P.hours = Math.min(+P.hours || 6, MITZ.maxH);
+function fitPlan() {
+  if (!budgeted()) return;
+  if (isMitz()) { P.hours = Math.min(+P.hours || 6, MITZ.maxH); P.days = 1; }
   const live = P.scenes.filter(s => s.status !== "cut"); if (!live.length) return;
-  live.forEach(s => s.estMinutes = clamp(Math.round(+s.estMinutes || 15), MITZ.min, MITZ.max));
-  const avail = mitzAvail(); const total = live.reduce((a, s) => a + s.estMinutes, 0);
-  if (total > avail) { const f = avail / total; live.forEach(s => s.estMinutes = Math.max(MITZ.min, Math.round(s.estMinutes * f))); }
+  const [a, b] = sceneRange();
+  live.forEach(s => s.estMinutes = clamp(Math.round(+s.estMinutes || 15), a, b));
+  const avail = availMin(); const total = live.reduce((x, s) => x + s.estMinutes, 0);
+  if (total > avail) { const f = avail / total; live.forEach(s => s.estMinutes = Math.max(a, Math.round(s.estMinutes * f))); }
   live.forEach(fitShots);
 }
-function mitzRules(extra) {
-  if (!isMitz()) return "";
+function budgetRules(extra) {
+  if (!budgeted()) return "";
   const n = P.scenes.length, per = n ? sceneBudget() : 15;
-  return `\nTIME BUDGET (very important): this Bar/Bat Mitzvah film is shot in ONE day of at most ${Math.min(+P.hours || 6, MITZ.maxH)} hours including setup and moves${n ? `; ${n} scenes means about ${per} minutes per scene` : ""} (every scene 10-20 minutes). The director has done many of these and works fast. ${extra || ""}\n`;
+  if (isMitz()) return `\nTIME BUDGET (very important): this Bar/Bat Mitzvah film is shot in ONE day of at most ${planHours()} hours including setup and moves${n ? `; ${n} scenes means about ${per} minutes per scene` : ""} (every scene 10-20 minutes). The director has done many of these and works fast. ${extra || ""}\n`;
+  return `\nTIME BUDGET (important): the shoot is planned for ${planDays()} day(s) of about ${planHours()} hours each, about ${availMin()} minutes of actual shooting after setup, meals and moves${n ? `; ${n} scenes means about ${per} minutes per scene on average (bigger scenes may get more, small ones less)` : ""}. Fit everything to this budget. ${extra || ""}\n`;
 }
+const shotCountHint = m => m <= 20 ? "2-4" : m <= 45 ? "3-6" : "3-8";
 function schedule() {
-  const tc = timeCfg();
+  const tc = Object.assign(timeCfg(), { oneDay: budgeted() && planDays() === 1 });
   const cap = (+P.hours || 6) * 60;
   const live = P.scenes.filter(s => s.status !== "cut");
   const first = {}, hasExt = {};
@@ -547,7 +557,7 @@ VIEWS.home = () => {
 };
 
 VIEWS.new = () => {
-  const w = ui.wiz || (ui.wiz = { step: 1, type: (P && P.type) || "narrative", src: "file", text: "", fileName: "", hours: 6, call: "07:00", busy: false });
+  const w = ui.wiz || (ui.wiz = { step: 1, type: (P && P.type) || "narrative", src: "file", text: "", fileName: "", days: 1, hours: 6, call: "07:00", busy: false });
   const steps = `<div class="steps"><span class="${w.step >= 1 ? "on" : ""}"><i>1</i>סוג</span>‹<span class="${w.step >= 2 ? "on" : ""}"><i>2</i>תסריט</span>‹<span class="${w.step >= 3 ? "on" : ""}"><i>3</i>יום צילום</span></div>`;
   let body = "";
   if (w.step === 1) body = `<h3>איזה סרט?</h3><div class="types">${TYPES.map(([k, l, ic]) => `<button class="type ${w.type === k ? "on" : ""}" data-act="wiz-type" data-k="${k}">${ICONS[ic]}${l}</button>`).join("")}</div>
@@ -559,11 +569,12 @@ VIEWS.new = () => {
     ${w.src === "file" ? `<div class="row"><button class="btn teal" data-act="wiz-file">⬆ בחר קובץ</button><span class="muted small" id="srcinfo">${esc(w.fileName ? w.fileName + " · " + w.text.length.toLocaleString() + " תווים" : "")}</span></div>` : ""}
     <textarea id="wtext" placeholder="${w.src === "idea" ? "למשל: סרט תדמית לחברת הייטק, 2 דקות, ראיון עם המנכ״ל, צוות בעבודה, אווירה צעירה." : "הטקסט של התסריט יופיע כאן. אפשר גם לערוך אותו."}" style="${w.src === "idea" ? "min-height:120px" : ""}">${esc(w.text)}</textarea>
     <div class="row"><button class="btn" data-act="wiz-back">→ חזרה</button><button class="btn primary" data-act="wiz-next">המשך ←</button></div>`;
-  if (w.step === 3) body = `<h3>יום צילום</h3>
-    <div class="row"><span class="lbl">שעות נטו</span><div class="seg">${hoursOpts(w.type).map(h => `<button class="${w.hours === h ? "on" : ""}" data-act="wiz-hours" data-h="${h}">${h}h</button>`).join("")}</div>
+  if (w.step === 3) body = `<h3>${w.type === "mitzvah" ? "יום צילום" : "כמה זמן משריינים לצילומים?"}</h3>
+    ${w.type === "mitzvah" ? "" : `<div class="row"><span class="lbl">ימי צילום</span><div class="seg">${[1, 2, 3, 4].map(d => `<button class="${w.days === d ? "on" : ""}" data-act="wiz-days" data-d="${d}">${d === 1 ? "יום אחד" : d + " ימים"}</button>`).join("")}</div></div>`}
+    <div class="row"><span class="lbl">${w.type === "mitzvah" ? "שעות נטו" : "שעות ביום"}</span><div class="seg">${hoursOpts(w.type).map(h => `<button class="${w.hours === h ? "on" : ""}" data-act="wiz-hours" data-h="${h}">${h}h</button>`).join("")}</div>
     <label class="row"><span class="lbl">Call</span><input type="time" id="wcall" value="${esc(w.call)}"></label></div>
     <p class="muted small">${TYPE_LABEL[w.type]} · ${w.src === "idea" ? "רעיון" : w.text.length.toLocaleString() + " תווים"}</p>
-    ${w.type === "mitzvah" ? `<p class="callout">בר/בת מצווה: כל הסרט ביום אחד, עד ${w.hours} שעות. כל סצנה מקבלת 10-20 דקות, והשוטים, הרעיונות והמעברים מותאמים לזמן הזה.</p>` : ""}
+    ${w.type === "mitzvah" ? `<p class="callout">בר/בת מצווה: כל הסרט ביום אחד, עד ${w.hours} שעות. כל סצנה מקבלת 10-20 דקות, והשוטים, הרעיונות והמעברים מותאמים לזמן הזה.</p>` : `<p class="callout">${w.days === 1 ? "יום אחד" : w.days + " ימים"} × ${w.hours} שעות. הפירוק, השוטים, הרעיונות והמעברים יותאמו לזמן הזה.</p>`}
     <div class="row"><button class="btn" data-act="wiz-back">→ חזרה</button><button class="btn primary" data-act="wiz-run" data-ai>✦ פרק ובנה תוכנית</button></div>
     <p class="muted small">הפירוק לוקח בדרך כלל חצי דקה עד שתי דקות. אחריו נוצרת אוטומטית רשימת "חובה לצלם".</p>`;
   return `<div class="col">${bar("פרויקט חדש", "", steps, `<button class="btn ghost" data-go="home" aria-label="סגור">✕</button>`)}<div class="body">${body}</div></div>`;
@@ -687,8 +698,8 @@ VIEWS.shots = () => {
       <div class="refbtns"><button data-act="ref-cam" data-shot="${x.id}">📷 צלם רפרנס</button><button data-act="ref-gal" data-shot="${x.id}">🖼 מהגלריה</button><button data-act="ref-link" data-shot="${x.id}">🔗 קישור</button></div>
       <div class="foot">${chip(x.status, `data-act="st" data-k="shot" data-id="${x.id}"`)}<span class="mono muted">${x.minutes} דק׳</span><span class="grow"></span><button class="btn ghost sm2" data-act="shot-move" data-id="${x.id}" data-d="-1" aria-label="הזז אחורה">↑</button><button class="btn ghost sm2" data-act="shot-move" data-id="${x.id}" data-d="1" aria-label="הזז קדימה">↓</button><button class="btn sm2" data-act="shot-edit" data-id="${x.id}">✎ ערוך</button></div>
     </div></article>`;
-  const over = isMitz() && sceneMin(s) > (s.estMinutes || sceneBudget());
-  return `<div class="col">${bar("שוטים וסטוריבורד", `Scene ${s.n} · ${s.shots.length} שוטים · ${sceneMin(s)} דק׳${isMitz() ? ` מתוך ${s.estMinutes || sceneBudget()}${over ? " ⚠" : ""}` : ""}`, `<button class="btn ${s.shots.length ? "ai" : "primary"}" data-act="gen1" data-id="${s.id}" data-ai>✦ ${s.shots.length ? "צור מחדש" : "צור שוטים"}</button><button class="btn" data-act="shot-new">+ שוט</button>${missing ? `<button class="btn" data-act="genall" data-ai>✦ לכל הסצנות (${missing})</button>` : ""}${noteBtn}`)}
+  const over = budgeted() && sceneMin(s) > (s.estMinutes || sceneBudget());
+  return `<div class="col">${bar("שוטים וסטוריבורד", `Scene ${s.n} · ${s.shots.length} שוטים · ${sceneMin(s)} דק׳${budgeted() ? ` מתוך ${s.estMinutes || sceneBudget()}${over ? " ⚠" : ""}` : ""}`, `<button class="btn ${s.shots.length ? "ai" : "primary"}" data-act="gen1" data-id="${s.id}" data-ai>✦ ${s.shots.length ? "צור מחדש" : "צור שוטים"}</button><button class="btn" data-act="shot-new">+ שוט</button>${missing ? `<button class="btn" data-act="genall" data-ai>✦ לכל הסצנות (${missing})</button>` : ""}${noteBtn}`)}
   <div class="body">
     <div class="scenetabs">${P.scenes.map(x => `<button class="${x.id === s.id ? "on" : ""} ${x.shots.length ? "has" : ""}" data-act="shs" data-id="${x.id}">Sc ${x.n}</button>`).join("")}</div>
     <p class="muted small">${esc(s.summary)}</p>
@@ -715,8 +726,8 @@ VIEWS.plan = () => {
     }).join("")}</div></div>`;
   const cutScenes = P.scenes.filter(s => s.status === "cut");
   const must = P.must && P.must.groups && P.must.groups.length ? `<div class="must">${P.must.groups.map(g => `<section><h3>${esc(g.name)}</h3>${g.items.map(i => `<div class="it ${i.priority === "nice" ? "nice" : ""} ${i.status === "cut" ? "is-cut" : ""}">${chip(i.status, `data-act="st" data-k="must" data-id="${i.id}"`)}<span>${esc(i.text)}${i.priority === "nice" ? ' <span class="muted small">(nice)</span>' : ""}</span></div>`).join("")}</section>`).join("")}</div>` : `<p class="muted">עוד לא נוצרה רשימה.</p>`;
-  const sel = `<div class="seg"><span class="lbl" style="align-self:center;padding:0 8px">שעות</span>${hoursOpts(P.type).map(h => `<button class="${+P.hours === h ? "on" : ""}" data-act="hours" data-h="${h}">${h}h</button>`).join("")}</div><label class="row"><span class="lbl">Call</span><input type="time" id="pcall" value="${esc(P.call || "07:00")}"></label>`;
-  const mz = isMitz() ? ` · בר/בת מצווה: עד ${Math.min(+P.hours, 6)}h, ~${sceneBudget()} דק׳ לסצנה` : "";
+  const sel = `${isMitz() ? "" : `<div class="seg"><span class="lbl" style="align-self:center;padding:0 8px">ימים</span>${[1, 2, 3, 4].map(d => `<button class="${planDays() === d && budgeted() ? "on" : ""}" data-act="pdays" data-d="${d}">${d}</button>`).join("")}</div>`}<div class="seg"><span class="lbl" style="align-self:center;padding:0 8px">שעות</span>${hoursOpts(P.type).map(h => `<button class="${+P.hours === h ? "on" : ""}" data-act="hours" data-h="${h}">${h}h</button>`).join("")}</div><label class="row"><span class="lbl">Call</span><input type="time" id="pcall" value="${esc(P.call || "07:00")}"></label>`;
+  const mz = isMitz() ? ` · בר/בת מצווה: עד ${planHours()}h, ~${sceneBudget()} דק׳ לסצנה` : budgeted() ? ` · מתוכנן: ${planDays()}×${planHours()}h, ~${sceneBudget()} דק׳ לסצנה` : "";
   return `<div class="col">${bar('לו"ז צילום', `${days.length} ימי צילום · ${Math.round(pr.total / 6) / 10}h · ${pr.pct}% צולם${mz}`, `${sel}<button class="btn teal" data-act="share-plan">שתף לצוות</button>${noteBtn}`)}
   <div class="body">
     <div class="pbar" title="ירוק = צולם · אדום = ירד"><i style="width:${pc(pr.done)}%;background:var(--teal)"></i><i style="width:${pc(pr.cut)}%;background:var(--crimson)"></i></div>
@@ -725,7 +736,8 @@ VIEWS.plan = () => {
     <div class="row"><h2 class="grow">Must-Shoot · חובה לצלם</h2><button class="btn ai sm2" data-act="must" data-ai>✦ ${P.must && P.must.groups && P.must.groups.length ? "צור מחדש" : "צור רשימה"}</button></div>
     ${must}
     <p class="muted small">${isMitz() ? `בר/בת מצווה: הכל ביום אחד. Call כולל ${MITZ.setup}' הקמה, כל מעבר לוקיישן ${MITZ.move}', כל סצנה 10-20 דקות. הסדר מקובץ לפי לוקיישן ואור.` : `הסדר מקובץ לפי לוקיישן ואור: חוץ ביום קודם, שקיעה ולילה בסוף. Call כולל ${SETUP}' הקמה, כל מעבר לוקיישן ${MOVE}', והפסקת אוכל ${MEAL}' בימים של 6 שעות ומעלה. אפשר לנעוץ סצנה ליום מסוים.`}</p>
-    ${isMitz() ? `<div class="row"><button class="btn sm2" data-act="mitz-fit">⏱ התאם את כל הסצנות ל-${Math.min(+P.hours, 6)} שעות</button></div>` : ""}
+    ${budgeted() && days.length > planDays() ? `<p class="callout" style="color:var(--crimson)">התוכנית חורגת מ-${planDays() === 1 ? "יום אחד" : planDays() + " ימים"}. לחץ ⏱ כדי להתאים, או הוסף יום.</p>` : ""}
+    <div class="row"><button class="btn sm2" data-act="plan-fit">⏱ התאם את כל הסצנות ל-${isMitz() ? planHours() + " שעות" : (budgeted() ? planDays() : Math.max(1, days.length)) + "×" + planHours() + "h"}</button></div>
   </div></div>${notesPane()}`;
 };
 
@@ -864,8 +876,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "1.5";
+const APP_VERSION = "1.6";
 const CHANGES = [
+  ["1.6", ["בעלילתי, תדמית, שיווק, פרומו, קליפ וכנס: בוחרים כמה ימי צילום וכמה שעות ביום, והפירוק, השוטים והרעיונות מותאמים לזה.", "בלו\"ז: שינוי ימים ושעות, והתראה אם התוכנית חורגת."]],
   ["1.5", ["בר/בת מצווה: כל הסרט ביום אחד של עד 6 שעות, 10-20 דקות לסצנה.", "השוטים, הרעיונות, השדרוגים, המעברים וה-Whisky Shot מותאמים לתקציב הזמן.", "כפתור ⏱ להתאמת כל הסצנות לשעות היום."]],
   ["1.4", ["הגדרות: כפתור ✕ סגור, ולחיצה שנייה על ⚙ הגדרות סוגרת וחוזרת למסך הקודם."]],
   ["1.3", ["השם ProLab צמוד ללוגו בסרגל.", "עדכונים נטענים תמיד במלואם, כדי שכל הכפתורים יעבדו אחרי עדכון."]],
@@ -1005,7 +1018,7 @@ async function runAI(fn) { try { await fn(); } catch (e) { /* status already sho
 const ACTIONS = {
   new() { ui.wiz = null; go("new"); },
   open(el) { const p = projects.find(x => x.id === el.dataset.id); if (p) { P = p; ui.scene = ui.shScene = ui.char = ui.loc = null; ui.setDay = 1; ui.setShot = null; go(p.scenes.length ? "script" : "new"); } },
-  "wiz-type"(el) { ui.wiz.type = el.dataset.k; if (el.dataset.k === "mitzvah" && ui.wiz.hours > 6) ui.wiz.hours = 6; rerender(); },
+  "wiz-type"(el) { const k = ui.wiz.type = el.dataset.k; if (k === "mitzvah" && ui.wiz.hours > 6) ui.wiz.hours = 6; if (k !== "mitzvah" && ui.wiz.hours === 6 && !ui.wiz.touched) ui.wiz.hours = 8; rerender(); },
   "wiz-src"(el) { ui.wiz.text = ($("#wtext") || {}).value ?? ui.wiz.text; ui.wiz.src = el.dataset.k; rerender(); if (el.dataset.k === "file") $("#fScript").click(); },
   "wiz-file"() { $("#fScript").click(); },
   "wiz-back"() { if ($("#wtext")) ui.wiz.text = $("#wtext").value; ui.wiz.step = Math.max(1, ui.wiz.step - 1); render(); },
@@ -1015,15 +1028,16 @@ const ACTIONS = {
     w.step = Math.min(3, w.step + 1); render();
   },
   "wiz-hours"(el) { ui.wiz.hours = +el.dataset.h; ui.wiz.call = $("#wcall").value || ui.wiz.call; rerender(); },
+  "wiz-days"(el) { ui.wiz.days = +el.dataset.d; ui.wiz.call = $("#wcall").value || ui.wiz.call; rerender(); },
   "wiz-run"() {
     const w = ui.wiz; w.call = $("#wcall").value || "07:00";
     runAI(async () => {
       const text = w.src === "idea" ? "CLIENT BRIEF / IDEA (no script yet):\n" + w.text : w.text;
-      const r = await ask(pBreakdown(text, w.type), "מפרק את התסריט");
+      const r = await ask(pBreakdown(text, w.type, w), "מפרק את התסריט");
       const { chars, scenes } = normBreakdown(r);
       if (!scenes.length) { sayStatus("לא זוהו סצנות. נסה להוסיף עוד פרטים.", true); return; }
-      P = { id: uid(), v: 2, created: Date.now(), type: w.type, hours: w.hours, call: w.call, source: w.text.slice(0, 60000), title: r.title || "פרויקט חדש", logline: r.logline || "", inferred: !!r.inferred || w.src === "idea", characters: chars, scenes, transitions: [], must: null, notes: [], whisky: {} };
-      fitMitz(); projects.push(P); save(); ui.wiz = null; ui.scene = null; ui.sub = "scenes"; go("script");
+      P = { id: uid(), v: 2, created: Date.now(), type: w.type, days: w.type === "mitzvah" ? 1 : w.days, hours: w.hours, call: w.call, source: w.text.slice(0, 60000), title: r.title || "פרויקט חדש", logline: r.logline || "", inferred: !!r.inferred || w.src === "idea", characters: chars, scenes, transitions: [], must: null, notes: [], whisky: {} };
+      fitPlan(); projects.push(P); save(); ui.wiz = null; ui.scene = null; ui.sub = "scenes"; go("script");
       try { await makeMust(); render(); } catch (_) {}
     });
   },
@@ -1062,7 +1076,7 @@ const ACTIONS = {
     if (!ap) { (P.notes = P.notes || []).push({ id: uid(), scope: "scene", ref: s.id, cat: "gen", text: "✦ " + c.title + ": " + c.text, done: false, at: Date.now() }); toast("נשמר כהערה לסצנה"); }
     else if (ap.type === "replace_line") { const b = s.blocks[ap.index]; if (b) { b.x = ap.text; if (ap.speaker) { b.t = "d"; b.c = ap.speaker; } markDirty(s); toast("השורה הוחלפה"); } else { toast("השורה כבר לא קיימת. נשמר כהערה."); (P.notes = P.notes || []).push({ id: uid(), scope: "scene", ref: s.id, cat: "gen", text: "✦ " + ap.text, done: false }); } }
     else if (ap.type === "add_lines") { const at = clamp((+ap.after) + 1, 0, s.blocks.length); s.blocks.splice(at, 0, ...(ap.lines || []).filter(l => l && l.x).map(l => ({ t: l.t === "d" ? "d" : "a", c: l.c || "", p: "", x: String(l.x) }))); syncSceneChars(s); markDirty(s); toast("נוסף לתסריט"); }
-    else if (ap.type === "add_shot" && ap.shot) { const x = normShot(ap.shot, ""); x.creative = true; s.shots.push(x); recode(s); if (isMitz()) { x.minutes = Math.min(x.minutes, 5); } toast("השוט נוסף ל-" + x.code + (isMitz() ? " · " + sceneMin(s) + " דק׳ לסצנה" : "")); }
+    else if (ap.type === "add_shot" && ap.shot) { const x = normShot(ap.shot, ""); x.creative = true; s.shots.push(x); recode(s); if (isMitz()) { x.minutes = Math.min(x.minutes, 5); } toast("השוט נוסף ל-" + x.code + (budgeted() ? " · " + sceneMin(s) + " דק׳ לסצנה" : "")); }
     else if (ap.type === "transition") { P.transitions = (P.transitions || []).filter(t => t.from !== s.n); P.transitions.push({ from: s.n, to: s.n + 1, type: ap.name || "Cut", idea: ap.idea || "", shoot: ap.shoot || "" }); toast("המעבר נשמר"); }
     c.used = true; save(); rerender();
   },
@@ -1096,8 +1110,9 @@ const ACTIONS = {
     if (o) { o.status = ST[(ST.indexOf(o.status || "left") + 1) % ST.length]; save(); rerender(); }
   },
   pin(el) {},
-  "mitz-fit"() { P.scenes.forEach(s => s.estMinutes = sceneBudget()); fitMitz(); save(); toast("כל הסצנות הותאמו: ~" + sceneBudget() + " דק׳ לסצנה"); rerender(); },
-  hours(el) { P.hours = +el.dataset.h; if (isMitz()) fitMitz(); save(); rerender(); },
+  "plan-fit"() { if (!P.days && !isMitz()) P.days = Math.max(1, schedule().length); P.scenes.forEach(s => s.estMinutes = sceneBudget()); fitPlan(); save(); toast("כל הסצנות הותאמו: ~" + sceneBudget() + " דק׳ לסצנה"); rerender(); },
+  hours(el) { P.hours = +el.dataset.h; fitPlan(); save(); rerender(); },
+  pdays(el) { P.days = +el.dataset.d; fitPlan(); save(); rerender(); },
   must() { runAI(async () => { await makeMust(); render(); }); },
   "set-day"(el) { ui.setDay = +el.dataset.day; ui.setShot = null; if (ui.view !== "set") go("set"); else rerender(); },
   "set-pick"(el) { ui.setShot = el.dataset.id; rerender(); },
