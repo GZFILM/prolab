@@ -829,8 +829,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "1.1";
+const APP_VERSION = "1.2";
 const CHANGES = [
+  ["1.2", ["נגיעה בתמונת רפרנס מגדילה אותה ל-3 שניות. נגיעה בתמונה המוגדלת משאירה אותה פתוחה."]],
   ["1.1", ["תפריט צד עם שיתוף האפליקציה, הוספה למסך הבית, מה חדש ואודות.", "שמירה וגיבוי ישירות מהתפריט."]],
   ["1.0", ["גרסה ראשונה: פירוק תסריט עם עריכה, דמויות ולוקיישנים.", "✦ שדרוג סצנה לפי טון, שוטים וסטוריבורד עם רפרנסים מהמצלמה.", "לו\"ז צילום, מצב סט עם סימוני סאונד, 🥃 Whisky Shot ו-🥂 צ'ירס.", "מעברים לעריכה וייצוא ל-PDF, HTML לסט, Word ו-CSV."]]];
 const DICON = {
@@ -871,7 +872,7 @@ function openMenu() {
 }
 function closeMenu() { $("#drawerwrap").hidden = true; }
 $("#drawerwrap").addEventListener("click", e => { if (e.target.id === "drawerwrap") closeMenu(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#drawerwrap").hidden) closeMenu(); else if (!$("#sheetwrap").hidden) closeSheet(); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#lightbox").hidden) closeLightbox(); else if (!$("#drawerwrap").hidden) closeMenu(); else if (!$("#sheetwrap").hidden) closeSheet(); } });
 let installEvt = null;
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; });
 window.addEventListener("appinstalled", () => { installEvt = null; toast("ProLab הותקנה במסך הבית ✓"); });
@@ -900,6 +901,23 @@ Object.assign(ACTIONS_EXTRA, {
     <p class="muted small">גרסה ${APP_VERSION} · ההצעות החכמות מבוססות על Claude של Anthropic · הנתונים נשמרים רק במכשיר שלך.</p>
     <div class="row"><button class="btn" data-act="sheet-close">סגור</button></div>`); }
 });
+
+/* ================= reference lightbox ================= */
+let lbTimer = null;
+function openLightbox(src) {
+  const lb = $("#lightbox"), fig = $("#lbfig");
+  $("#lbimg").src = src; fig.classList.remove("pinned"); $("#lbcap").textContent = "נגיעה בתמונה משאירה אותה פתוחה";
+  const bar = $("#lbbar"); bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = "";
+  lb.hidden = false; clearTimeout(lbTimer); lbTimer = setTimeout(closeLightbox, 3000);
+}
+function closeLightbox() { clearTimeout(lbTimer); $("#lightbox").hidden = true; }
+$("#lbimg").addEventListener("click", e => {
+  e.stopPropagation(); const fig = $("#lbfig");
+  if (fig.classList.contains("pinned")) { closeLightbox(); return; }
+  clearTimeout(lbTimer); fig.classList.add("pinned"); $("#lbcap").textContent = "📌 נשארת פתוחה · נגיעה נוספת סוגרת";
+});
+$("#lbx").addEventListener("click", e => { e.stopPropagation(); closeLightbox(); });
+$("#lightbox").addEventListener("click", e => { if (e.target.id === "lightbox") closeLightbox(); });
 
 /* ================= render + routing ================= */
 const NEEDS_P = ["script", "shots", "plan", "set", "cut", "ai", "whisky", "cheers"];
@@ -1093,6 +1111,7 @@ const ACTIONS = {
   "sheet-close"() { closeSheet(); }
 };
 document.addEventListener("click", e => {
+  const im = e.target.closest(".ref img[data-img]"); if (im && im.src) { e.preventDefault(); openLightbox(im.src); return; }
   const g = e.target.closest("[data-go]"); if (g) { e.preventDefault(); commitEdit(); go(g.dataset.go); return; }
   const v = e.target.closest(".rail [data-view]"); if (v) { commitEdit(); go(v.dataset.view); return; }
   const a = e.target.closest("[data-act]");
