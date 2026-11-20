@@ -1,20 +1,20 @@
-/* ProLab · palette: tungsten amber + cinema teal + crimson on deep ink (teal & orange grade). Layout: nav rail on the right (RTL), title + actions on the right, optional notes pane on the left. */
+/* ProLab · palette taken from the app icon: deep navy, sky blue, amber and cream (crimson only for Cut). Layout: nav rail on the right (RTL), title + actions on the right, optional notes pane on the left. */
 :root{
-  --bg:#e4eaea; --app:#f5f7f6; --card:#ffffff; --ink:#10201f; --muted:#5a6c6e; --line:#d5dede;
-  --amber:#b8690b; --amber-soft:#fbead2; --teal:#0f7466; --teal-soft:#d6eeea; --crimson:#b7323e; --crimson-soft:#f7dcde;
-  --rail:#0d1a1d; --rail-ink:#9fb3b6; --gold1:#f3b54a; --gold2:#d9822b;
-  --left:#4a5a60; --left-bg:#e6ecec; --part:#9a6200; --part-bg:#fcefd2; --note:#fff4cc; --note-ink:#5b4500;
+  --bg:#e6edf5; --app:#f3f6fa; --card:#ffffff; --ink:#0b1828; --muted:#52677d; --line:#d2dce7;
+  --amber:#a8620c; --amber-soft:#fbead1; --teal:#2b6699; --teal-soft:#dbe8f5; --crimson:#b3313d; --crimson-soft:#f7dcde;
+  --rail:#0b1828; --rail-ink:#9db3c9; --gold1:#f4b85e; --gold2:#e08f2f;
+  --left:#475b70; --left-bg:#e5ecf3; --part:#94600a; --part-bg:#fcefd2; --note:#fff4d6; --note-ink:#5b4500;
   --f-logo:"Bellefair",Georgia,serif; --f-d:"Rubik",system-ui,sans-serif; --f-b:"Assistant",system-ui,sans-serif; --f-m:"IBM Plex Mono",ui-monospace,monospace;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#070c0e; --app:#0f171a; --card:#162125; --ink:#edf3f2; --muted:#93a5a8; --line:#25343a;
-  --amber:#f0a33a; --amber-soft:#3a2a12; --teal:#33bfae; --teal-soft:#123532; --crimson:#ec5f69; --crimson-soft:#3b1a1d;
-  --rail:#060d0f; --rail-ink:#8aa0a4; --left:#b0c0c4; --left-bg:#22313a; --part:#f0c35c; --part-bg:#3a2f14; --note:#3b3315; --note-ink:#f7e3a1; color-scheme:dark}}
+  --bg:#060e18; --app:#0b1828; --card:#132c45; --ink:#fff6ec; --muted:#9db3c9; --line:#21405f;
+  --amber:#f0a94c; --amber-soft:#3a2c17; --teal:#9cc4e8; --teal-soft:#1a3a59; --crimson:#ef6a73; --crimson-soft:#3f1d24;
+  --rail:#07111d; --rail-ink:#8aa3bc; --left:#b6c8da; --left-bg:#1c3651; --part:#f3c56a; --part-bg:#3d3119; --note:#3d3418; --note-ink:#f8e5a8; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#070c0e; --app:#0f171a; --card:#162125; --ink:#edf3f2; --muted:#93a5a8; --line:#25343a;
-  --amber:#f0a33a; --amber-soft:#3a2a12; --teal:#33bfae; --teal-soft:#123532; --crimson:#ec5f69; --crimson-soft:#3b1a1d;
-  --rail:#060d0f; --rail-ink:#8aa0a4; --left:#b0c0c4; --left-bg:#22313a; --part:#f0c35c; --part-bg:#3a2f14; --note:#3b3315; --note-ink:#f7e3a1; color-scheme:dark}
+  --bg:#060e18; --app:#0b1828; --card:#132c45; --ink:#fff6ec; --muted:#9db3c9; --line:#21405f;
+  --amber:#f0a94c; --amber-soft:#3a2c17; --teal:#9cc4e8; --teal-soft:#1a3a59; --crimson:#ef6a73; --crimson-soft:#3f1d24;
+  --rail:#07111d; --rail-ink:#8aa3bc; --left:#b6c8da; --left-bg:#1c3651; --part:#f3c56a; --part-bg:#3d3119; --note:#3d3418; --note-ink:#f8e5a8; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--app);color:var(--ink);font-family:var(--f-b);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
@@ -40,8 +40,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 .rail .mark svg{width:48px;height:48px;display:block}
 .rail button{width:72px;padding:8px 0;border:0;background:none;color:var(--rail-ink);border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:3px;font:600 .72rem var(--f-b);cursor:pointer}
 .rail button svg{width:24px;height:24px}
-.rail button.on{background:rgba(240,163,58,.14);color:#fff}
-.rail button.on svg{color:#f0a33a}
+.rail button.on{background:rgba(240,169,76,.14);color:#fff6ec}
+.rail button.on svg{color:#f0a94c}
 .rail button:disabled{opacity:.35;cursor:default}
 .rail .rail-set{margin-top:auto}
 .main{grid-column:2;grid-row:1;display:grid;grid-template-columns:1fr auto;min-height:0;min-width:0;overflow:hidden}
@@ -316,22 +316,22 @@ textarea{unicode-bidi:plaintext;width:100%;min-height:200px;font-family:var(--f-
 
 /* side menu (drawer) */
 .drawerwrap{position:fixed;inset:0;z-index:75;background:rgba(5,10,12,.55);display:flex;justify-content:flex-start;direction:rtl}
-.drawer{width:min(380px,88vw);height:100%;background:#121419;color:#e9eef0;overflow-y:auto;display:flex;flex-direction:column;padding:calc(20px + env(safe-area-inset-top,0px)) 0 calc(20px + env(safe-area-inset-bottom,0px));box-shadow:0 0 40px rgba(0,0,0,.5);animation:dIn .2s ease-out}
+.drawer{width:min(380px,88vw);height:100%;background:#0b1828;color:#fff6ec;overflow-y:auto;display:flex;flex-direction:column;padding:calc(20px + env(safe-area-inset-top,0px)) 0 calc(20px + env(safe-area-inset-bottom,0px));box-shadow:0 0 40px rgba(0,0,0,.5);animation:dIn .2s ease-out}
 @keyframes dIn{from{transform:translateX(30px);opacity:.4}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.drawer{animation:none}}
-.dhead{padding:4px 22px 18px;border-bottom:1px solid #2a2d33;display:flex;flex-direction:column;gap:8px}
-.dhead .logo .wm{color:#f2f4f5}
-.dhead .logo small{color:#8d969c}
-.dhead p{color:#9aa3a8;font-size:.95rem}
+.dhead{padding:4px 22px 18px;border-bottom:1px solid #21405f;display:flex;flex-direction:column;gap:8px}
+.dhead .logo .wm{color:#fff6ec}
+.dhead .logo small{color:#8aa3bc}
+.dhead p{color:#9db3c9;font-size:.95rem}
 .ditem{display:flex;gap:16px;align-items:center;padding:14px 22px;border:0;background:none;color:inherit;text-align:start;cursor:pointer;width:100%;font:inherit}
-.ditem:hover,.ditem:focus-visible{background:rgba(255,255,255,.05)}
-.ditem.on{background:rgba(240,163,58,.1)}
-.ditem svg{width:26px;height:26px;color:#9aa3a8;flex:none}
-.ditem.on svg{color:#f0a33a}
-.ditem b{display:block;font-family:var(--f-d);font-weight:500;font-size:1.12rem;color:#f2f4f5}
-.ditem span span{display:block;color:#8d969c;font-size:.9rem}
+.ditem:hover,.ditem:focus-visible{background:rgba(156,196,232,.08)}
+.ditem.on{background:rgba(240,169,76,.12)}
+.ditem svg{width:26px;height:26px;color:#9cc4e8;flex:none}
+.ditem.on svg{color:#f0a94c}
+.ditem b{display:block;font-family:var(--f-d);font-weight:500;font-size:1.12rem;color:#fff6ec}
+.ditem span span{display:block;color:#8aa3bc;font-size:.9rem}
 .ditem:disabled{opacity:.4;cursor:default}
-.dsep{height:1px;background:#2a2d33;margin:10px 22px}
+.dsep{height:1px;background:#21405f;margin:10px 22px}
 .rail .rail-menu svg{width:24px;height:24px}
 .changes{display:flex;flex-direction:column;gap:12px}
 .changes h3{font-size:1rem}

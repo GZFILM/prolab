@@ -426,7 +426,7 @@ function renumber() { P.scenes.forEach((s, i) => { s.n = i + 1; recode(s); }); }
 
 /* ================= storyboard ================= */
 const PAL_APP = { ink: "var(--ink)", muted: "var(--muted)", line: "var(--line)", accent: "var(--amber)", bg: "var(--left-bg)", fg2: "var(--card)" };
-const PAL_PRINT = { ink: "#1d2a33", muted: "#5d6b72", line: "#c9d0cd", accent: "#c4741a", bg: "#f3f5f3", fg2: "#dfe5e3" };
+const PAL_PRINT = { ink: "#0b1828", muted: "#52677d", line: "#c9d6e3", accent: "#c4741a", bg: "#f1f5f9", fg2: "#dde6ef" };
 function sizeKey(s) {
   s = String(s || "").toUpperCase();
   if (/INSERT/.test(s)) return "INSERT"; if (/OTS|OVER/.test(s)) return "OTS"; if (/ECU|EXTREME CLOSE/.test(s)) return "ECU"; if (/MCU|MEDIUM CLOSE/.test(s)) return "MCU";
@@ -876,7 +876,7 @@ VIEWS.set = () => {
   let cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot) || q.find(e => !isDone(e)) || null;
   const pr = progressOf(day.scenes);
   const daySeg = days.length > 1 ? `<div class="seg">${days.map(d => `<button class="${d.n === ui.setDay ? "on" : ""}" data-act="set-day" data-day="${d.n}">Day ${d.n}</button>`).join("")}</div>` : "";
-  const ring = `<svg class="ring" viewBox="0 0 36 36"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#33bfae"/><stop offset="1" stop-color="#f3b54a"/></linearGradient></defs><circle cx="18" cy="18" r="15" fill="none" stroke="var(--left-bg)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="url(#rg)" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(pr.pct / 100 * 94.2).toFixed(1)} 94.2" transform="rotate(-90 18 18)"/><text x="18" y="21" text-anchor="middle" font-size="8" font-weight="700" fill="var(--ink)" font-family="Rubik">${pr.pct}%</text></svg>`;
+  const ring = `<svg class="ring" viewBox="0 0 36 36"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#9cc4e8"/><stop offset="1" stop-color="#f0a94c"/></linearGradient></defs><circle cx="18" cy="18" r="15" fill="none" stroke="var(--left-bg)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="url(#rg)" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(pr.pct / 100 * 94.2).toFixed(1)} 94.2" transform="rotate(-90 18 18)"/><text x="18" y="21" text-anchor="middle" font-size="8" font-weight="700" fill="var(--ink)" font-family="Rubik">${pr.pct}%</text></svg>`;
   let now;
   if (!cur) now = `<div class="card now" style="align-items:center;text-align:center"><h2>הכל צולם ביום הזה 🎬</h2><p class="muted">לפני שמקפלים, עוד בדיקה אחת.</p><button class="btn whisky" data-act="whisky" data-day="${ui.setDay}">🥃 Whisky Shot</button></div>`;
   else {
@@ -1003,8 +1003,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "2.4";
+const APP_VERSION = "2.5";
 const CHANGES = [
+  ["2.5", ["צבעי האפליקציה לפי הלוגו: כחול לילה, תכלת, ענבר וקרם."]],
   ["2.4", ["אייקון ולוגו חדשים לאפליקציה."]],
   ["2.3", ["במסך התסריט: לשונית \"רשימה\" עם כל הסצנות לפי הסדר ותיאור קצר, ומכל סצנה קפיצה לתסריט, לשוטים או ללו\"ז."]],
   ["2.2", ["📄 התסריט המקורי בלחיצה: בלו\"ז, במסך התסריט ובתפריט. המספר של כל סצנה מופיע ליד הכותרת שלה, והקובץ המקורי (PDF / Word) נפתח מכאן.", "בלו\"ז: מספר הסצנה צמוד לכותרת (פנים/חוץ, לוקיישן, יום/לילה)."]],
@@ -1545,7 +1546,7 @@ const XCSS = `.smx{font-family:Assistant,Arial,sans-serif;color:#1d2a33;backgrou
 .smx td{padding:5px 6px;border-bottom:1px solid #e3e7e5;vertical-align:top}.smx tr.loc td{background:#eef0ee;font-weight:700}.smx tr.misc td{color:#5d6b72}.smx tr.sc td{font-weight:700}
 .smx tr.sh td:nth-child(2){padding-right:16px}.smx tr.is-cut td:not(:last-child){text-decoration:line-through;color:#8a979d}
 .smx .chip{font:600 11px Assistant,Arial,sans-serif;border:0;border-radius:99px;padding:3px 9px;white-space:nowrap;cursor:pointer}
-.smx .chip[data-s=left]{background:#e3e8ec;color:#4a5a66}.smx .chip[data-s=shot]{background:#d6eeea;color:#0f7466}.smx .chip[data-s=part]{background:#fbefcc;color:#9a6a00}.smx .chip[data-s=cut]{background:#f7dcde;color:#b7323e}
+.smx .chip[data-s=left]{background:#e3e8ec;color:#4a5a66}.smx .chip[data-s=shot]{background:#dbe8f5;color:#2b6699}.smx .chip[data-s=part]{background:#fbefcc;color:#9a6a00}.smx .chip[data-s=cut]{background:#f7dcde;color:#b7323e}
 .smx .rem{display:block;font-weight:400;font-size:11px;color:#c4741a}.smx .nt{display:block;font-weight:400;font-size:11px;color:#5b4500;background:#fff4cc;padding:2px 6px;border-radius:4px;margin-top:2px}.smx .ed{display:block;font-weight:400;font-size:11px;color:#0f7466;min-height:1em}
 .smx .sbg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.smx .sbg figure{margin:0;break-inside:avoid}.smx .sbg svg{width:100%;height:auto;display:block}.smx figcaption{font-size:11px;padding-top:3px}
 .smx .grp{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 16px}.smx .it{display:flex;gap:6px;align-items:flex-start}
