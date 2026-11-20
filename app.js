@@ -806,7 +806,7 @@ VIEWS.shots = () => {
   const shotCard = x => `<article class="card shot ${x.status === "cut" ? "is-cut" : ""}">${frame(x, PAL_APP)}<div class="in">
       <div class="tech"><span class="tag">${esc(x.code)}</span><span class="tag">${esc(x.size)}</span><span class="tag">${ANG_LABEL[angKey(x.angle)]}</span><span class="tag">${esc(x.move)}</span>${x.lens ? `<span class="tag">${esc(x.lens)}</span>` : ""}${x.creative ? '<span class="tag a">✦ Creative</span>' : ""}${(x.flags || {}).sound ? '<span class="tag r">🎤</span>' : ""}${(x.flags || {}).nomic ? '<span class="tag r">🎙</span>' : ""}</div>
       <p>${esc(x.desc)}</p>${x.purpose ? `<p class="muted small">${esc(x.purpose)}</p>` : ""}
-      ${(x.refs || []).length ? `<div class="refs">${x.refs.map(r => r.type === "img" ? `<span class="ref"><img data-img="${r.img}" alt="רפרנס"><button class="btn ghost sm2" data-act="ref-del" data-shot="${x.id}" data-ref="${r.id}" aria-label="הסר רפרנס">✕</button></span>` : `<span class="ref"><a class="lk" href="${esc(r.url)}" target="_blank" rel="noopener">🔗 ${esc(r.url.replace(/^https?:\/\/(www\.)?/, ""))}</a><button class="btn ghost sm2" data-act="ref-del" data-shot="${x.id}" data-ref="${r.id}" aria-label="הסר קישור">✕</button></span>`).join("")}</div>` : ""}
+      ${(x.refs || []).length ? `<div class="refs">${x.refs.map(r => r.type === "img" ? `<span class="ref"><img data-img="${r.img}" data-shot="${x.id}" data-ref="${r.id}" alt="רפרנס"><button class="btn ghost sm2" data-act="ref-del" data-shot="${x.id}" data-ref="${r.id}" aria-label="הסר רפרנס">✕</button></span>` : `<span class="ref"><a class="lk" href="${esc(r.url)}" target="_blank" rel="noopener">🔗 ${esc(r.url.replace(/^https?:\/\/(www\.)?/, ""))}</a><button class="btn ghost sm2" data-act="ref-del" data-shot="${x.id}" data-ref="${r.id}" aria-label="הסר קישור">✕</button></span>`).join("")}</div>` : ""}
       <div class="refbtns"><button data-act="ref-cam" data-shot="${x.id}">📷 צלם רפרנס</button><button data-act="ref-gal" data-shot="${x.id}">🖼 מהגלריה</button><button data-act="ref-link" data-shot="${x.id}">🔗 קישור</button></div>
       <div class="foot">${chip(x.status, `data-act="st" data-k="shot" data-id="${x.id}"`)}<span class="mono muted">${x.minutes} דק׳</span><span class="grow"></span><button class="btn ghost sm2" data-act="shot-move" data-id="${x.id}" data-d="-1" aria-label="הזז אחורה">↑</button><button class="btn ghost sm2" data-act="shot-move" data-id="${x.id}" data-d="1" aria-label="הזז קדימה">↓</button><button class="btn sm2" data-act="shot-edit" data-id="${x.id}">✎ ערוך</button></div>
     </div></article>`;
@@ -887,7 +887,7 @@ VIEWS.set = () => {
       ${cst !== "left" ? `<div class="dirty">כרגע מסומן: ${STL[cst]} <button class="btn sm2" data-act="set-mark" data-s="left">↺ החזר ל-Left (לא צולם)</button></div>` : ""}
       <div class="row"><span class="code">${x ? esc(x.code) : "Sc " + s.n}</span><div><h3>${esc(x ? x.desc : s.summary)}</h3><span class="muted">${x ? `${esc(x.size)} · ${esc(x.move)}${x.lens ? " · " + esc(x.lens) : ""} · ${x.minutes} דק׳` : "בלי פירוק לשוטים"}</span></div></div>
       ${x ? `<div class="sbbox">${frame(x, PAL_APP)}</div>` : ""}
-      ${x && (x.refs || []).length ? `<div class="refs">${x.refs.map(r => r.type === "img" ? `<span class="ref"><img data-img="${r.img}" alt="רפרנס"></span>` : `<a class="ref" href="${esc(r.url)}" target="_blank" rel="noopener"><span class="lk">🔗 ${esc(r.url.replace(/^https?:\/\/(www\.)?/, ""))}</span></a>`).join("")}</div>` : ""}
+      ${x && (x.refs || []).length ? `<div class="refs">${x.refs.map(r => r.type === "img" ? `<span class="ref"><img data-img="${r.img}" data-shot="${x.id}" data-ref="${r.id}" alt="רפרנס"><button class="btn ghost sm2" data-act="ref-del" data-shot="${x.id}" data-ref="${r.id}" aria-label="מחק רפרנס">✕</button></span>` : `<span class="ref"><a class="lk" href="${esc(r.url)}" target="_blank" rel="noopener">🔗 ${esc(r.url.replace(/^https?:\/\/(www\.)?/, ""))}</a><button class="btn ghost sm2" data-act="ref-del" data-shot="${x.id}" data-ref="${r.id}" aria-label="מחק קישור">✕</button></span>`).join("")}</div>` : ""}
       <div class="bigbtns"><button style="background:var(--teal-soft);color:var(--teal)" data-act="set-mark" data-s="shot">✓ צולם</button><button style="background:var(--part-bg);color:var(--part)" data-act="set-mark" data-s="part">◐ חלקי</button><button style="background:var(--crimson-soft);color:var(--crimson)" data-act="set-mark" data-s="cut">✕ ירד</button></div>
       ${x ? `<div class="flags"><button class="flag ${f.sound ? "on" : ""}" data-act="flag" data-f="sound">🎤 סאונד בעייתי</button><button class="flag ${f.nomic ? "on" : ""}" data-act="flag" data-f="nomic">🎙 אין מיק לשחקן</button><button class="flag ${f.later ? "on" : ""}" data-act="flag" data-f="later">… להשלים בסוף</button></div>` : ""}
       ${rem.map(r => `<span class="callout" style="color:var(--amber)">✂ לזכור: ${esc(r)}</span>`).join("")}
@@ -1003,8 +1003,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "2.5";
+const APP_VERSION = "2.6";
 const CHANGES = [
+  ["2.6", ["מחיקת תמונת רפרנס גם במצב סט, וגם מתוך התמונה המוגדלת (🗑 מחק)."]],
   ["2.5", ["צבעי האפליקציה לפי הלוגו: כחול לילה, תכלת, ענבר וקרם."]],
   ["2.4", ["אייקון ולוגו חדשים לאפליקציה."]],
   ["2.3", ["במסך התסריט: לשונית \"רשימה\" עם כל הסצנות לפי הסדר ותיאור קצר, ומכל סצנה קפיצה לתסריט, לשוטים או ללו\"ז."]],
@@ -1102,7 +1103,9 @@ Object.assign(ACTIONS_EXTRA, {
 
 /* ================= reference lightbox ================= */
 let lbTimer = null;
-function openLightbox(src) {
+let lbCtx = null;
+function openLightbox(src, ctx) {
+  lbCtx = ctx || null; const del = $("#lbdel"); del.hidden = !lbCtx; del.textContent = "🗑 מחק"; del.dataset.armed = "";
   const lb = $("#lightbox"), fig = $("#lbfig");
   $("#lbimg").src = src; fig.classList.remove("pinned"); $("#lbcap").textContent = "נגיעה בתמונה משאירה אותה פתוחה";
   const bar = $("#lbbar"); bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = "";
@@ -1115,6 +1118,11 @@ $("#lbimg").addEventListener("click", e => {
   clearTimeout(lbTimer); fig.classList.add("pinned"); $("#lbcap").textContent = "📌 נשארת פתוחה · נגיעה נוספת סוגרת";
 });
 $("#lbx").addEventListener("click", e => { e.stopPropagation(); closeLightbox(); });
+$("#lbdel").addEventListener("click", e => {
+  e.stopPropagation(); const b = e.currentTarget; clearTimeout(lbTimer); $("#lbfig").classList.add("pinned");
+  if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "לחץ שוב למחיקה"; return; }
+  closeLightbox(); if (lbCtx) ACTIONS["ref-del"]({ dataset: { shot: lbCtx.shot, ref: lbCtx.ref } }); toast("הרפרנס נמחק");
+});
 $("#lightbox").addEventListener("click", e => { if (e.target.id === "lightbox") closeLightbox(); });
 
 /* ================= render + routing ================= */
@@ -1377,7 +1385,7 @@ const ACTIONS = {
   "sheet-close"() { closeSheet(); }
 };
 document.addEventListener("click", e => {
-  const im = e.target.closest(".ref img[data-img]"); if (im && im.src) { e.preventDefault(); openLightbox(im.src); return; }
+  const im = e.target.closest(".ref img[data-img]"); if (im && im.src) { e.preventDefault(); openLightbox(im.src, im.dataset.shot ? { shot: im.dataset.shot, ref: im.dataset.ref } : null); return; }
   const g = e.target.closest("[data-go]"); if (g) { e.preventDefault(); commitEdit(); go(g.dataset.go); return; }
   const v = e.target.closest(".rail [data-view]"); if (v) { commitEdit(); if (v.dataset.view === "settings" && ui.view === "settings") { closeSettings(); return; } go(v.dataset.view); return; }
   const a = e.target.closest("[data-act]");

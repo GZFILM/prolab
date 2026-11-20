@@ -346,6 +346,7 @@ textarea{unicode-bidi:plaintext;width:100%;min-height:200px;font-family:var(--f-
 .lbfig.pinned figcaption{color:var(--amber);font-weight:700}
 .lbbar{position:absolute;left:10px;right:10px;top:10px;height:4px;border-radius:2px;background:var(--amber);transform-origin:right;animation:lbBar 3s linear forwards}
 .lbfig.pinned .lbbar{display:none}
+.lbdel{position:absolute;top:18px;right:18px;height:40px;padding:0 14px;border-radius:20px;border:0;background:rgba(179,49,61,.85);color:#fff;font:600 .9rem var(--f-b);cursor:pointer}
 .lbx{position:absolute;top:18px;left:18px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:1.1rem;cursor:pointer}
 @keyframes lbIn{from{transform:scale(.85);opacity:0}to{transform:none;opacity:1}}
 @keyframes lbBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
