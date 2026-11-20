@@ -868,14 +868,23 @@ function setQueue(day) {
   day.scenes.forEach(s => { if (s.shots.length) s.shots.forEach(x => { if (x.status !== "cut") q.push({ s, x }); }); else q.push({ s, x: null }); });
   return q;
 }
+const setByScript = () => !!(P && P.setOrder === "script");
+function setCtx() {
+  if (setByScript()) {
+    const scenes = P.scenes.filter(s => s.status !== "cut").slice().sort((a, b) => a.n - b.n);
+    return { q: setQueue({ scenes }), scenes, day: null, days: [] };
+  }
+  const days = schedule(); ui.setDay = clamp(ui.setDay || 1, 1, days.length);
+  const day = days[ui.setDay - 1]; return { q: setQueue(day), scenes: day.scenes, day, days };
+}
 VIEWS.set = () => {
   if (!P || !P.scenes.length) return `<div class="col">${P ? bar("מצב סט", "") + `<div class="body">${noScenes()}</div>` : noProject()}</div>`;
-  const days = schedule(); ui.setDay = clamp(ui.setDay || 1, 1, days.length);
-  const day = days[ui.setDay - 1]; const q = setQueue(day);
+  const { q, scenes: ctxScenes, day, days } = setCtx(); const byScript = setByScript();
   const isDone = e => (e.x ? e.x.status : e.s.status) === "shot";
   let cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot) || q.find(e => !isDone(e)) || null;
-  const pr = progressOf(day.scenes);
-  const daySeg = days.length > 1 ? `<div class="seg">${days.map(d => `<button class="${d.n === ui.setDay ? "on" : ""}" data-act="set-day" data-day="${d.n}">Day ${d.n}</button>`).join("")}</div>` : "";
+  const pr = progressOf(ctxScenes);
+  const orderSeg = `<div class="seg"><button class="${byScript ? "" : "on"}" data-act="set-order" data-v="plan">לפי הלו"ז</button><button class="${byScript ? "on" : ""}" data-act="set-order" data-v="script">לפי התסריט</button></div>`;
+  const daySeg = !byScript && days.length > 1 ? `<div class="seg">${days.map(d => `<button class="${d.n === ui.setDay ? "on" : ""}" data-act="set-day" data-day="${d.n}">Day ${d.n}</button>`).join("")}</div>` : "";
   const ring = `<svg class="ring" viewBox="0 0 36 36"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#9cc4e8"/><stop offset="1" stop-color="#f0a94c"/></linearGradient></defs><circle cx="18" cy="18" r="15" fill="none" stroke="var(--left-bg)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="url(#rg)" stroke-width="4" stroke-linecap="round" stroke-dasharray="${(pr.pct / 100 * 94.2).toFixed(1)} 94.2" transform="rotate(-90 18 18)"/><text x="18" y="21" text-anchor="middle" font-size="8" font-weight="700" fill="var(--ink)" font-family="Rubik">${pr.pct}%</text></svg>`;
   let now;
   if (!cur) now = `<div class="card now" style="align-items:center;text-align:center"><h2>הכל צולם ביום הזה 🎬</h2><p class="muted">לפני שמקפלים, עוד בדיקה אחת.</p><button class="btn whisky" data-act="whisky" data-day="${ui.setDay}">🥃 Whisky Shot</button></div>`;
@@ -896,10 +905,10 @@ VIEWS.set = () => {
   }
   const nextList = q.filter(e => e !== cur && !isDone(e)).slice(0, 4);
   const undoBtn = (ui.undo || []).length ? `<button class="btn" data-act="undo">↩ בטל סימון</button>` : "";
-  return `<div class="col">${bar("מצב סט", `Day ${ui.setDay} · ${pr.nDone}/${pr.nShots} צולמו`, `${undoBtn}${daySeg}<button class="btn whisky" data-act="whisky" data-day="${ui.setDay}">🥃 Whisky Shot</button>${cur && cur.x ? `<button class="btn" data-act="ref-cam" data-shot="${cur.x.id}">📷 רפרנס</button>` : ""}<button class="btn" data-act="note-open">📝 הערה</button>`)}
+  return `<div class="col">${bar("מצב סט", `${byScript ? "כל הסרט לפי סדר התסריט" : "Day " + ui.setDay} · ${pr.nDone}/${pr.nShots} צולמו`, `${undoBtn}${orderSeg}${daySeg}<button class="btn whisky" data-act="whisky" data-day="${ui.setDay}">🥃 Whisky Shot</button>${cur && cur.x ? `<button class="btn" data-act="ref-cam" data-shot="${cur.x.id}">📷 רפרנס</button>` : ""}<button class="btn" data-act="note-open">📝 הערה</button>`)}
   <div class="body"><div class="setwrap">${now}
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="card" style="padding:14px;display:flex;gap:14px;align-items:center">${ring}<div><b>Day ${ui.setDay}</b><br><span class="muted">${pr.nDone} מתוך ${pr.nShots} · Wrap ≈ ${hhmm(day.wrap)}</span></div></div>
+      <div class="card" style="padding:14px;display:flex;gap:14px;align-items:center">${ring}<div><b>${byScript ? "כל הסרט" : "Day " + ui.setDay}</b><br><span class="muted">${pr.nDone} מתוך ${pr.nShots}${byScript ? ` · נשאר ${Math.round(ctxScenes.reduce((a, s) => a + remMin(s), 0) / 6) / 10}h` : ` · Wrap ≈ ${hhmm(day.wrap)}`}</span></div></div>
       ${nextList.length ? `<span class="mono muted">הבא בתור</span>${nextList.map(e => `<button class="card q qbtn" data-act="set-pick" data-id="${e.x ? e.x.id : e.s.id}"><span class="t">${e.x ? esc(e.x.code) : "Sc " + e.s.n}</span><span class="grow">${esc(e.x ? e.x.size + " · " + e.x.desc : e.s.summary)}</span>${e.x && e.x.status === "part" ? '<span class="tag a">Partial</span>' : ""}</button>`).join("")}` : ""}
       ${q.filter(isDone).length ? `<span class="mono muted">צולמו · נגיעה פותחת ומאפשרת לבטל</span>${q.filter(isDone).slice(-6).map(e => `<button class="card q qbtn" data-act="set-pick" data-id="${e.x ? e.x.id : e.s.id}" style="opacity:.6"><span class="t">${e.x ? esc(e.x.code) : "Sc " + e.s.n}</span><span class="grow">${esc(e.x ? e.x.desc : e.s.summary)}</span><span class="tag t">✓</span></button>`).join("")}` : ""}
       ${hasProgress() ? `<button class="btn ghost sm2" data-act="reset-progress">↺ אפס את כל הסימונים</button>` : ""}
@@ -1003,8 +1012,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "2.6";
+const APP_VERSION = "2.7";
 const CHANGES = [
+  ["2.7", ["מצב סט כרונולוגי: מתג \"לפי הלו\"ז / לפי התסריט\". לפי התסריט, השוטים עולים לפי סדר הסצנות בסרט."]],
   ["2.6", ["מחיקת תמונת רפרנס גם במצב סט, וגם מתוך התמונה המוגדלת (🗑 מחק)."]],
   ["2.5", ["צבעי האפליקציה לפי הלוגו: כחול לילה, תכלת, ענבר וקרם."]],
   ["2.4", ["אייקון ולוגו חדשים לאפליקציה."]],
@@ -1319,6 +1329,7 @@ const ACTIONS = {
     if (s && hasProgress() && remMin(s) === 0) { ui.planRemain = false; ui.planRemainSet = true; }
     ui.focus = "pl-" + id; go("plan", { force: true });
   },
+  "set-order"(el) { P.setOrder = el.dataset.v; ui.setShot = null; save(); rerender(); },
   "plan-remain"(el) { ui.planRemain = el.dataset.v === "1"; ui.planRemainSet = true; rerender(); },
   "plan-fit"() { if (!P.days && !isMitz()) P.days = Math.max(1, schedule().length); P.scenes.forEach(s => s.estMinutes = sceneBudget()); fitPlan(); save(); toast("כל הסצנות הותאמו: ~" + sceneBudget() + " דק׳ לסצנה"); rerender(); },
   hours(el) { P.hours = +el.dataset.h; fitPlan(); save(); rerender(); },
@@ -1327,7 +1338,7 @@ const ACTIONS = {
   "set-day"(el) { ui.setDay = +el.dataset.day; ui.setShot = null; if (ui.view !== "set") go("set"); else rerender(); },
   "set-pick"(el) { ui.setShot = el.dataset.id; rerender(); },
   "set-mark"(el) {
-    const days = schedule(); const day = days[clamp(ui.setDay, 1, days.length) - 1]; const q = setQueue(day);
+    const { q } = setCtx();
     const isDone = e => (e.x ? e.x.status : e.s.status) === "shot";
     const cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot) || q.find(e => !isDone(e)); if (!cur) return;
     setStatus(cur.x ? "shot" : "scene", (cur.x || cur.s).id, el.dataset.s); ui.setShot = el.dataset.s === "left" ? (cur.x || cur.s).id : null;
@@ -1336,7 +1347,7 @@ const ACTIONS = {
     rerender();
   },
   flag(el) {
-    const days = schedule(); const day = days[clamp(ui.setDay, 1, days.length) - 1]; const q = setQueue(day);
+    const { q } = setCtx();
     const isDone = e => (e.x ? e.x.status : e.s.status) === "shot";
     const cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot) || q.find(e => !isDone(e)); if (!cur || !cur.x) return;
     const f = cur.x.flags = cur.x.flags || {}; f[el.dataset.f] = !f[el.dataset.f]; ui.setShot = cur.x.id; save(); rerender();
