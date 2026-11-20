@@ -684,10 +684,11 @@ VIEWS.new = () => {
 VIEWS.script = () => {
   if (!P) return `<div class="col">${noProject()}</div>`;
   if (!P.scenes.length) return `<div class="col">${bar(esc(P.title || "פרויקט"), "")}<div class="body">${noScenes()}</div></div>`;
-  const seg = `<div class="seg">${[["scenes", "סצנות"], ["chars", "דמויות"], ["locs", "לוקיישנים"]].map(([k, l]) => `<button class="${ui.sub === k ? "on" : ""}" data-act="sub" data-k="${k}">${l}</button>`).join("")}</div>`;
+  const seg = `<div class="seg">${[["scenes", "סצנות"], ["chars", "דמויות"], ["locs", "לוקיישנים"], ["list", "רשימה"]].map(([k, l]) => `<button class="${ui.sub === k ? "on" : ""}" data-act="sub" data-k="${k}">${l}</button>`).join("")}</div>`;
   let main = "", sub = "";
   if (ui.sub === "chars") { [main, sub] = scriptChars(); }
   else if (ui.sub === "locs") { [main, sub] = scriptLocs(); }
+  else if (ui.sub === "list") { [main, sub] = scriptList(); }
   else { [main, sub] = scriptScenes(); }
   const s = curScene();
   const actions = `${seg}${ui.sub === "scenes" && s ? `<button class="btn ai" data-act="ai-open">✦ שדרג סצנה</button>` : ""}<input type="search" id="q" placeholder="חיפוש" value="${esc(ui.q)}" style="width:150px"><button class="btn" data-act="src-open">📄 מקורי</button>${noteBtn}`;
@@ -740,6 +741,16 @@ function scriptChars() {
     ${c && c.desc ? `<p class="muted">${esc(c.desc)}</p>` : ""}
     <div class="lines">${lines.map(({ s, b, i }) => `<button class="ln dlg" data-act="goto-line" data-id="${s.id}" data-i="${i}"><span class="who mono">Sc ${s.n}</span><span class="txt">${b.p ? `<i>(${esc(b.p)})</i> ` : ""}${esc(b.x)}</span></button>`).join("") || '<p class="muted">אין שורות דיאלוג לדמות הזו.</p>'}</div></div></div>`;
   return [main, "נוגעים בדמות ורואים את כל השורות שלה"];
+}
+function scriptList() {
+  const q = ui.q.trim();
+  const rows = P.scenes.filter(s => !q || s.summary.includes(q) || s.location.includes(q) || s.blocks.some(b => b.x.includes(q))).map(s => {
+    const done = s.shots.length ? `${s.shots.filter(x => x.status === "shot").length}/${liveShots(s).length} שוטים` : STL[s.status || "left"];
+    return `<div class="card lrow ${s.status === "cut" ? "is-cut" : ""}"><span class="scnum">${s.n}</span>
+      <div class="grow"><b>${esc(s.intExt)}. ${esc(s.location)} · ${esc(s.time)}</b><p class="small">${esc(s.summary)}</p><span class="muted small">${sceneMin(s)} דק׳ · ${done}${noteCount("scene", s.id) ? " · 📝 " + noteCount("scene", s.id) : ""}</span></div>
+      <div class="lgo"><button class="btn sm2" data-act="list-go" data-to="script" data-id="${s.id}">תסריט</button><button class="btn sm2" data-act="list-go" data-to="shots" data-id="${s.id}">שוטים</button><button class="btn sm2" data-act="list-go" data-to="plan" data-id="${s.id}">לו"ז</button></div></div>`;
+  }).join("");
+  return [`<div class="queue">${rows || '<p class="muted">אין סצנות שמתאימות לחיפוש.</p>'}</div>`, `${P.scenes.length} סצנות לפי סדר התסריט · ${Math.round(P.scenes.reduce((a, s) => a + (s.status === "cut" ? 0 : sceneMin(s)), 0) / 6) / 10}h`];
 }
 function scriptLocs() {
   const groups = {}; P.scenes.forEach(s => { const k = normLoc(s.location); (groups[k] = groups[k] || { name: s.location, scenes: [] }).scenes.push(s); });
@@ -823,7 +834,7 @@ VIEWS.plan = () => {
       if (it.kind === "meal") return `<div class="card q misc"><span class="t">${hhmm(it.t)}</span><span>🍽 הפסקת אוכל (${it.m}')</span></div>`;
       if (it.kind === "loc") return `<div class="card q loc"><span class="t">${hhmm(it.t)}</span><span>📍 ${esc(it.loc)} · ${esc(it.ie)} · ${esc(it.time)}${it.m ? ` <span class="muted small">(מעבר ${it.m}')</span>` : ""}</span>${noteCount("loc", normLoc(it.loc)) ? `<span class="tag n">📝 ${noteCount("loc", normLoc(it.loc))}</span>` : ""}</div>`;
       const s = it.s; let t = it.t; const live = s.shots.length; const doneN = s.shots.filter(x => x.status === "shot").length; const rem = remindersFor(s.n); const nc = noteCount("scene", s.id);
-      return `<div class="card q sc"><div class="top"><span class="t">${hhmm(it.t)}</span><span class="grow"><span class="schead"><span class="scnum">${s.n}</span><b>${esc(s.intExt)}. ${esc(s.location)} · ${esc(s.time)}</b></span><span class="small">${esc(s.summary)}</span><br><span class="muted small">${live ? s.shots.length + " שוטים · " : ""}${it.m}'${nc ? " · 📝 " + nc : ""}</span>${rem.map(r => `<span class="remind">✂ ${esc(r)}</span>`).join("")}</span>${dayOpts(s)}${live ? `<span class="mono">${s.shots.filter(x => x.status === "shot").length}/${liveShots(s).length}</span>` : chip(s.status, `data-act="st" data-k="scene" data-id="${s.id}"`)}</div>
+      return `<div class="card q sc" id="pl-${s.id}"><div class="top"><span class="t">${hhmm(it.t)}</span><span class="grow"><span class="schead"><span class="scnum">${s.n}</span><b>${esc(s.intExt)}. ${esc(s.location)} · ${esc(s.time)}</b></span><span class="small">${esc(s.summary)}</span><br><span class="muted small">${live ? s.shots.length + " שוטים · " : ""}${it.m}'${nc ? " · 📝 " + nc : ""}</span>${rem.map(r => `<span class="remind">✂ ${esc(r)}</span>`).join("")}</span>${dayOpts(s)}${live ? `<span class="mono">${s.shots.filter(x => x.status === "shot").length}/${liveShots(s).length}</span>` : chip(s.status, `data-act="st" data-k="scene" data-id="${s.id}"`)}</div>
         ${live ? `<div class="shotrows">${R && doneN ? `<span class="muted small">✓ ${doneN} שוטים כבר צולמו</span>` : ""}${s.shots.filter(x => !R || x.status !== "shot").map(x => { const h = `<div class="shotrow ${x.status === "cut" ? "is-cut" : ""}"><span class="mono muted">${x.status === "cut" ? "" : hhmm(t)}</span><span class="mono">${esc(x.code)}</span><span class="d">${esc(x.desc)}</span><span class="mono muted">${esc(x.size)} · ${x.minutes}'</span>${chip(x.status, `data-act="st" data-k="shot" data-id="${x.id}"`)}</div>`; if (x.status !== "cut") t += +x.minutes || 0; return h; }).join("")}</div>` : ""}</div>`;
     }).join("")}</div></div>`;
   const cutScenes = P.scenes.filter(s => s.status === "cut");
@@ -992,8 +1003,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "2.2";
+const APP_VERSION = "2.3";
 const CHANGES = [
+  ["2.3", ["במסך התסריט: לשונית \"רשימה\" עם כל הסצנות לפי הסדר ותיאור קצר, ומכל סצנה קפיצה לתסריט, לשוטים או ללו\"ז."]],
   ["2.2", ["📄 התסריט המקורי בלחיצה: בלו\"ז, במסך התסריט ובתפריט. המספר של כל סצנה מופיע ליד הכותרת שלה, והקובץ המקורי (PDF / Word) נפתח מכאן.", "בלו\"ז: מספר הסצנה צמוד לכותרת (פנים/חוץ, לוקיישן, יום/לילה)."]],
   ["2.1", ["↩ בטל סימון: מבטל את הסימון האחרון (Shot / Partial / Cut).", "במצב סט: נגיעה בשוט שכבר צולם פותחת אותו, ואפשר להחזיר אותו ל-Left.", "↺ אפס את כל הסימונים: מחזיר את הפרויקט למצב שלפני הצילום."]],
   ["2.0", ["לו\"ז \"מה שנשאר\": אחרי שמסמנים Shot ✓, הלו\"ז מראה רק מה שנשאר לצלם, כמה זמן זה לוקח, והאם זה נכנס ביום הבא.", "אפשר לעבור בין \"מה שנשאר\" ל\"כל התוכנית\"."]],
@@ -1116,6 +1128,11 @@ function render() {
   if (render.keepScroll) { const b = main.querySelector(".body"); if (b) b.scrollTop = scroll; }
   render.keepScroll = false;
   hydrateImages(main);
+  if (ui.focus) {
+    const el = document.getElementById(ui.focus);
+    if (el) { el.scrollIntoView({ block: "center" }); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1800); }
+    ui.focus = null;
+  }
   if (ui.edit) { const t = $("#etext"); if (t && render.focusEdit) { t.focus(); render.focusEdit = false; } }
 }
 function go(v, opts = {}) {
@@ -1282,6 +1299,15 @@ const ACTIONS = {
     const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.target = "_blank"; a.rel = "noopener";
     if (!/pdf|text/.test(P.srcFile.type)) a.download = P.srcFile.name;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  },
+  "list-go"(el) {
+    const id = el.dataset.id, to = el.dataset.to;
+    if (to === "script") { ui.scene = id; ui.sub = "scenes"; ui.edit = null; rerender(); return; }
+    if (to === "shots") { ui.shScene = id; go("shots"); return; }
+    const s = P.scenes.find(x => x.id === id);
+    if (s && (s.status === "cut")) { toast("הסצנה הזו סומנה Cut, ולכן היא לא בלו\"ז."); return; }
+    if (s && hasProgress() && remMin(s) === 0) { ui.planRemain = false; ui.planRemainSet = true; }
+    ui.focus = "pl-" + id; go("plan", { force: true });
   },
   "plan-remain"(el) { ui.planRemain = el.dataset.v === "1"; ui.planRemainSet = true; rerender(); },
   "plan-fit"() { if (!P.days && !isMitz()) P.days = Math.max(1, schedule().length); P.scenes.forEach(s => s.estMinutes = sceneBudget()); fitPlan(); save(); toast("כל הסצנות הותאמו: ~" + sceneBudget() + " דק׳ לסצנה"); rerender(); },

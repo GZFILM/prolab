@@ -1,6 +1,6 @@
 /* ProLab service worker: app shell works offline. Bump VERSION on every release. */
-const VERSION = "prolab-v13";
-const SHELL = ["./", "index.html", "styles.css?v=2.2", "app.js?v=2.2", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png",
+const VERSION = "prolab-v14";
+const SHELL = ["./", "index.html", "styles.css?v=2.3", "app.js?v=2.3", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png",
   "vendor/anthropic-sdk.js", "vendor/mammoth.browser.min.js", "vendor/pdf.min.js", "vendor/pdf.worker.min.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
