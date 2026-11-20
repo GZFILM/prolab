@@ -690,7 +690,7 @@ VIEWS.script = () => {
   else if (ui.sub === "locs") { [main, sub] = scriptLocs(); }
   else { [main, sub] = scriptScenes(); }
   const s = curScene();
-  const actions = `${seg}${ui.sub === "scenes" && s ? `<button class="btn ai" data-act="ai-open">✦ שדרג סצנה</button>` : ""}<input type="search" id="q" placeholder="חיפוש" value="${esc(ui.q)}" style="width:150px">${noteBtn}`;
+  const actions = `${seg}${ui.sub === "scenes" && s ? `<button class="btn ai" data-act="ai-open">✦ שדרג סצנה</button>` : ""}<input type="search" id="q" placeholder="חיפוש" value="${esc(ui.q)}" style="width:150px"><button class="btn" data-act="src-open">📄 מקורי</button>${noteBtn}`;
   return `<div class="col">${bar(esc(P.title || "פרויקט"), sub, actions)}<div class="body">${P.inferred ? `<p class="callout">התסריט היה תיאור חופשי, אז המבנה הוצע על ידי Claude. כדאי לעבור עליו.</p>` : ""}${main}</div></div>${notesPane()}`;
 };
 function sceneListHTML() {
@@ -823,14 +823,14 @@ VIEWS.plan = () => {
       if (it.kind === "meal") return `<div class="card q misc"><span class="t">${hhmm(it.t)}</span><span>🍽 הפסקת אוכל (${it.m}')</span></div>`;
       if (it.kind === "loc") return `<div class="card q loc"><span class="t">${hhmm(it.t)}</span><span>📍 ${esc(it.loc)} · ${esc(it.ie)} · ${esc(it.time)}${it.m ? ` <span class="muted small">(מעבר ${it.m}')</span>` : ""}</span>${noteCount("loc", normLoc(it.loc)) ? `<span class="tag n">📝 ${noteCount("loc", normLoc(it.loc))}</span>` : ""}</div>`;
       const s = it.s; let t = it.t; const live = s.shots.length; const doneN = s.shots.filter(x => x.status === "shot").length; const rem = remindersFor(s.n); const nc = noteCount("scene", s.id);
-      return `<div class="card q sc"><div class="top"><span class="t">${hhmm(it.t)}</span><span class="grow"><b>Sc ${s.n} · ${esc(s.summary)}</b><br><span class="muted small">${live ? s.shots.length + " שוטים · " : ""}${esc(s.intExt)} ${esc(s.time)} · ${it.m}'${nc ? " · 📝 " + nc : ""}</span>${rem.map(r => `<span class="remind">✂ ${esc(r)}</span>`).join("")}</span>${dayOpts(s)}${live ? `<span class="mono">${s.shots.filter(x => x.status === "shot").length}/${liveShots(s).length}</span>` : chip(s.status, `data-act="st" data-k="scene" data-id="${s.id}"`)}</div>
+      return `<div class="card q sc"><div class="top"><span class="t">${hhmm(it.t)}</span><span class="grow"><span class="schead"><span class="scnum">${s.n}</span><b>${esc(s.intExt)}. ${esc(s.location)} · ${esc(s.time)}</b></span><span class="small">${esc(s.summary)}</span><br><span class="muted small">${live ? s.shots.length + " שוטים · " : ""}${it.m}'${nc ? " · 📝 " + nc : ""}</span>${rem.map(r => `<span class="remind">✂ ${esc(r)}</span>`).join("")}</span>${dayOpts(s)}${live ? `<span class="mono">${s.shots.filter(x => x.status === "shot").length}/${liveShots(s).length}</span>` : chip(s.status, `data-act="st" data-k="scene" data-id="${s.id}"`)}</div>
         ${live ? `<div class="shotrows">${R && doneN ? `<span class="muted small">✓ ${doneN} שוטים כבר צולמו</span>` : ""}${s.shots.filter(x => !R || x.status !== "shot").map(x => { const h = `<div class="shotrow ${x.status === "cut" ? "is-cut" : ""}"><span class="mono muted">${x.status === "cut" ? "" : hhmm(t)}</span><span class="mono">${esc(x.code)}</span><span class="d">${esc(x.desc)}</span><span class="mono muted">${esc(x.size)} · ${x.minutes}'</span>${chip(x.status, `data-act="st" data-k="shot" data-id="${x.id}"`)}</div>`; if (x.status !== "cut") t += +x.minutes || 0; return h; }).join("")}</div>` : ""}</div>`;
     }).join("")}</div></div>`;
   const cutScenes = P.scenes.filter(s => s.status === "cut");
   const must = P.must && P.must.groups && P.must.groups.length ? `<div class="must">${P.must.groups.map(g => `<section><h3>${esc(g.name)}</h3>${g.items.map(i => `<div class="it ${i.priority === "nice" ? "nice" : ""} ${i.status === "cut" ? "is-cut" : ""}">${chip(i.status, `data-act="st" data-k="must" data-id="${i.id}"`)}<span>${esc(i.text)}${i.priority === "nice" ? ' <span class="muted small">(nice)</span>' : ""}</span></div>`).join("")}</section>`).join("")}</div>` : `<p class="muted">עוד לא נוצרה רשימה.</p>`;
   const sel = `${isMitz() ? "" : `<div class="seg"><span class="lbl" style="align-self:center;padding:0 8px">ימים</span>${[1, 2, 3, 4].map(d => `<button class="${planDays() === d && budgeted() ? "on" : ""}" data-act="pdays" data-d="${d}">${d}</button>`).join("")}</div>`}<div class="seg"><span class="lbl" style="align-self:center;padding:0 8px">שעות</span>${hoursOpts(P.type).map(h => `<button class="${+P.hours === h ? "on" : ""}" data-act="hours" data-h="${h}">${h}h</button>`).join("")}</div><label class="row"><span class="lbl">Call</span><input type="time" id="pcall" value="${esc(P.call || "07:00")}"></label>`;
   const mz = isMitz() ? ` · בר/בת מצווה: עד ${planHours()}h, ~${sceneBudget()} דק׳ לסצנה` : budgeted() ? ` · מתוכנן: ${planDays()}×${planHours()}h, ~${sceneBudget()} דק׳ לסצנה` : "";
-  return `<div class="col">${bar('לו"ז צילום', `${days.length} ימי צילום · ${Math.round(pr.total / 6) / 10}h · ${pr.pct}% צולם${mz}`, `${sel}<button class="btn teal" data-act="share-plan">שתף לצוות</button>${noteBtn}`)}
+  return `<div class="col">${bar('לו"ז צילום', `${days.length} ימי צילום · ${Math.round(pr.total / 6) / 10}h · ${pr.pct}% צולם${mz}`, `${sel}<button class="btn" data-act="src-open">📄 תסריט מקורי</button><button class="btn teal" data-act="share-plan">שתף לצוות</button>${noteBtn}`)}
   <div class="body">
     <div class="pbar" title="ירוק = צולם · אדום = ירד"><i style="width:${pc(pr.done)}%;background:var(--teal)"></i><i style="width:${pc(pr.cut)}%;background:var(--crimson)"></i></div>
     ${hasProgress() ? (() => {
@@ -992,8 +992,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "2.1";
+const APP_VERSION = "2.2";
 const CHANGES = [
+  ["2.2", ["📄 התסריט המקורי בלחיצה: בלו\"ז, במסך התסריט ובתפריט. המספר של כל סצנה מופיע ליד הכותרת שלה, והקובץ המקורי (PDF / Word) נפתח מכאן.", "בלו\"ז: מספר הסצנה צמוד לכותרת (פנים/חוץ, לוקיישן, יום/לילה)."]],
   ["2.1", ["↩ בטל סימון: מבטל את הסימון האחרון (Shot / Partial / Cut).", "במצב סט: נגיעה בשוט שכבר צולם פותחת אותו, ואפשר להחזיר אותו ל-Left.", "↺ אפס את כל הסימונים: מחזיר את הפרויקט למצב שלפני הצילום."]],
   ["2.0", ["לו\"ז \"מה שנשאר\": אחרי שמסמנים Shot ✓, הלו\"ז מראה רק מה שנשאר לצלם, כמה זמן זה לוקח, והאם זה נכנס ביום הבא.", "אפשר לעבור בין \"מה שנשאר\" ל\"כל התוכנית\"."]],
   ["1.9", ["מחיקת פרויקט ישר ממסך הבית: כפתור 🗑 בפינת הכרטיס."]],
@@ -1027,6 +1028,7 @@ function openMenu() {
   $("#drawer").innerHTML = `<div class="dhead"><div class="logo">${LOGO("d")}<div><div class="wm">Pro<em>Lab</em></div><small>by G.Z MOTION LAB</small></div></div><p>פירוק תסריט, שוטים ולו"ז צילום</p></div>
     ${it("dgo", "home", "בית", "כל הפרויקטים שלך", { v: "home", on: on("home") })}
     ${it("dgo", "script", "הפרויקט שלי", P ? esc(P.title || "תסריט") + " · תסריט, דמויות ולוקיישנים" : "תסריט, דמויות ולוקיישנים", { v: "script", on: on("script"), dis: noP })}
+    ${it("src-open", "script", "התסריט המקורי", "הטקסט והקובץ כפי שהועלו", { dis: noP })}
     ${it("dgo", "shots", "שוטים וסטוריבורד", "שוטים, ציורים ורפרנסים", { v: "shots", on: on("shots"), dis: noP })}
     ${it("dgo", "plan", 'לו"ז צילום', "סדר צילום, ימים וחובה לצלם", { v: "plan", on: on("plan"), dis: noP })}
     ${it("dgo", "set", "מצב סט", "צילום, סימונים ו-Whisky Shot", { v: "set", on: on("set"), dis: noP })}
@@ -1163,7 +1165,7 @@ const ACTIONS = {
     const r = localBreakdown(w.text, w.type);
     if (!r) { openSheet(`<h2>לא זיהיתי סצנות</h2><p>הפירוק המהיר מחפש כותרות סצנה, למשל:</p><p class="mono" dir="auto">פנים. החדר של יונתן - בוקר<br>EXT. BEACH - SUNSET<br>סצנה 3: חוף הים, שקיעה</p><p class="muted">אפשר להוסיף כותרות כאלה לתסריט, או להשתמש ב-✦ פירוק חכם עם Claude, שמבין גם טקסט לא מסודר.</p><div class="row"><button class="btn" data-act="sheet-close">הבנתי</button></div>`); return; }
     P = { id: uid(), v: 2, created: Date.now(), type: w.type, days: w.type === "mitzvah" ? 1 : w.days, hours: w.hours, call: w.call, source: w.text.slice(0, 60000), title: r.title, logline: "", inferred: false, quick: true, characters: r.chars, scenes: r.scenes, transitions: [], must: null, notes: [], whisky: {} };
-    fitPlan(); projects.push(P); save(); ui.wiz = null; ui.scene = null; ui.sub = "scenes"; go("script");
+    fitPlan(); attachSourceFile(w); projects.push(P); save(); ui.wiz = null; ui.scene = null; ui.sub = "scenes"; go("script");
     toast(`⚡ ${r.scenes.length} סצנות · ${r.chars.length} דמויות · בלי Claude`);
   },
   "wiz-run"() {
@@ -1174,7 +1176,7 @@ const ACTIONS = {
       const { chars, scenes } = normBreakdown(r);
       if (!scenes.length) { sayStatus("לא זוהו סצנות. נסה להוסיף עוד פרטים.", true); return; }
       P = { id: uid(), v: 2, created: Date.now(), type: w.type, days: w.type === "mitzvah" ? 1 : w.days, hours: w.hours, call: w.call, source: w.text.slice(0, 60000), title: r.title || "פרויקט חדש", logline: r.logline || "", inferred: !!r.inferred || w.src === "idea", characters: chars, scenes, transitions: [], must: null, notes: [], whisky: {} };
-      fitPlan(); projects.push(P); save(); ui.wiz = null; ui.scene = null; ui.sub = "scenes"; go("script");
+      fitPlan(); attachSourceFile(w); projects.push(P); save(); ui.wiz = null; ui.scene = null; ui.sub = "scenes"; go("script");
       try { await makeMust(); render(); } catch (_) {}
     });
   },
@@ -1272,6 +1274,15 @@ const ACTIONS = {
     };
   },
   pin(el) {},
+  "src-open"() { openSource(); },
+  "src-goto"(el) { closeSheet(); ui.scene = el.dataset.id; ui.sub = "scenes"; go("script", { force: true }); },
+  async "src-file"() {
+    const b = await IDB.getImg(P.srcFile.id).catch(() => null);
+    if (!b) { toast("הקובץ המקורי לא נמצא במכשיר."); return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.target = "_blank"; a.rel = "noopener";
+    if (!/pdf|text/.test(P.srcFile.type)) a.download = P.srcFile.name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  },
   "plan-remain"(el) { ui.planRemain = el.dataset.v === "1"; ui.planRemainSet = true; rerender(); },
   "plan-fit"() { if (!P.days && !isMitz()) P.days = Math.max(1, schedule().length); P.scenes.forEach(s => s.estMinutes = sceneBudget()); fitPlan(); save(); toast("כל הסצנות הותאמו: ~" + sceneBudget() + " דק׳ לסצנה"); rerender(); },
   hours(el) { P.hours = +el.dataset.h; fitPlan(); save(); rerender(); },
@@ -1369,9 +1380,30 @@ function setStatus(kind, id, val) {
   (ui.undo = ui.undo || []).push([{ kind, id, prev: o.status || "left" }]); if (ui.undo.length > 40) ui.undo.shift();
   o.status = val; save();
 }
+function attachSourceFile(w) {
+  if (!w.file || w.src !== "file") return;
+  const id = uid(); P.srcFile = { id, name: w.fileName, type: w.file.type || "" };
+  IDB.putImg(id, w.file).catch(() => { delete P.srcFile; });
+}
+function sourceText() {
+  if (P.source && P.source.trim()) return { text: P.source, built: false };
+  return { built: true, text: P.scenes.map(s => [`${s.n}. ${s.intExt}. ${s.location} - ${s.time}`].concat(s.blocks.map(b => b.t === "d" ? `${b.c}${b.p ? " (" + b.p + ")" : ""}: ${b.x}` : b.x)).join("\n")).join("\n\n") };
+}
+function openSource() {
+  closeMenu();
+  const { text, built } = sourceText(); let k = 0;
+  const body = text.split("\n").map(l => {
+    if (isHeading(l)) { k++; const sc = P.scenes[k - 1]; return `<div class="srch"><span class="scnum">${k}</span><b class="grow">${esc(l.trim())}</b>${sc ? `<button class="btn ghost sm2" data-act="src-goto" data-id="${sc.id}">פתח ←</button>` : ""}</div>`; }
+    return `<div class="srl">${esc(l) || "&nbsp;"}</div>`;
+  }).join("");
+  openSheet(`<div class="row"><h2 class="grow">📄 התסריט המקורי</h2>${P.srcFile ? `<button class="btn teal" data-act="src-file">פתח את הקובץ (${esc(P.srcFile.name)})</button>` : ""}<button class="btn" data-act="sheet-close">✕ סגור</button></div>
+    ${built ? `<p class="muted small">הטקסט המקורי לא נשמר בפרויקט הזה, אז זה התסריט כפי שהוא בפירוק.</p>` : `<p class="muted small">${k} כותרות סצנה זוהו. המספר ליד כל כותרת הוא מספר הסצנה בפירוק.</p>`}
+    <div class="srcview">${body}</div>`);
+}
 function deleteProject(p) {
   IDB.del(p.id).catch(() => {});
   (p.scenes || []).forEach(s => (s.shots || []).forEach(x => (x.refs || []).forEach(r => { if (r.img) IDB.delImg(r.img).catch(() => {}); })));
+  if (p.srcFile) IDB.delImg(p.srcFile.id).catch(() => {});
   projects = projects.filter(x => x !== p); if (P === p) P = null;
 }
 function applyShots(s, r) {
@@ -1448,7 +1480,7 @@ async function readScriptFile(f) {
     else text = await f.text();
   } catch (err) { toast("לא הצלחתי לקרוא את הקובץ. נסה להעתיק ולהדביק את הטקסט."); if (info) info.textContent = ""; return; }
   text = text.trim();
-  if (ui.wiz) { ui.wiz.text = text; ui.wiz.fileName = f.name; ui.wiz.src = "file"; }
+  if (ui.wiz) { ui.wiz.text = text; ui.wiz.fileName = f.name; ui.wiz.src = "file"; ui.wiz.file = f; }
   rerender();
   if (text.length < 20) toast("כמעט לא נמצא טקסט. אם זה PDF סרוק, העתק את הטקסט ידנית.");
 }
@@ -1504,7 +1536,7 @@ function exportBody(interactive) {
       if (it.kind === "meal") { h += `<tr class="misc"><td class="mono">${hhmm(it.t)}</td><td colspan="5">הפסקת אוכל (${it.m}')</td></tr>`; return; }
       if (it.kind === "loc") { h += `<tr class="loc"><td class="mono">${hhmm(it.t)}</td><td colspan="5">📍 ${esc(it.loc)} · ${esc(it.ie)} · ${esc(it.time)}</td></tr>`; return; }
       const s = it.s; let t = it.t;
-      h += `<tr class="sc"><td class="mono">${hhmm(it.t)}</td><td class="mono">${s.n}</td><td>${esc(s.summary)}${remindersFor(s.n).map(r => `<span class="rem">✂ ${esc(r)}</span>`).join("")}${notesOf(s)}${interactive ? `<span class="ed" contenteditable="true" data-nt="${s.id}" aria-label="הערות"></span>` : ""}</td><td></td><td class="mono">${it.m}'</td><td>${s.shots.length ? "" : c(s.status, s.id)}</td></tr>`;
+      h += `<tr class="sc"><td class="mono">${hhmm(it.t)}</td><td class="mono">${s.n}</td><td><b>${s.n}. ${esc(s.intExt)}. ${esc(s.location)} - ${esc(s.time)}</b><br><span style="font-weight:400">${esc(s.summary)}</span>${remindersFor(s.n).map(r => `<span class="rem">✂ ${esc(r)}</span>`).join("")}${notesOf(s)}${interactive ? `<span class="ed" contenteditable="true" data-nt="${s.id}" aria-label="הערות"></span>` : ""}</td><td></td><td class="mono">${it.m}'</td><td>${s.shots.length ? "" : c(s.status, s.id)}</td></tr>`;
       s.shots.forEach(x => { h += `<tr class="sh ${x.status === "cut" ? "is-cut" : ""}"><td class="mono muted">${x.status === "cut" ? "" : hhmm(t)}</td><td class="mono">${esc(x.code)}</td><td>${esc(x.desc)}${(x.refs || []).filter(r => r.type === "link").map(r => ` <a href="${esc(r.url)}">🔗</a>`).join("")}</td><td class="mono">${esc(x.size)} · ${esc(x.move)}${x.lens ? " · " + esc(x.lens) : ""}</td><td class="mono">${x.minutes}'</td><td>${c(x.status, x.id)}</td></tr>`; if (x.status !== "cut") t += +x.minutes || 0; });
     });
     h += `</tbody></table></section>`;
