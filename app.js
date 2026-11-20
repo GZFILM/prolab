@@ -746,7 +746,7 @@ function scriptList() {
   const q = ui.q.trim();
   const rows = P.scenes.filter(s => !q || s.summary.includes(q) || s.location.includes(q) || s.blocks.some(b => b.x.includes(q))).map(s => {
     const done = s.shots.length ? `${s.shots.filter(x => x.status === "shot").length}/${liveShots(s).length} שוטים` : STL[s.status || "left"];
-    return `<div class="card lrow ${s.status === "cut" ? "is-cut" : ""}"><span class="scnum">${s.n}</span>
+    return `<div class="card lrow ${s.status === "cut" ? "is-cut" : ""}"><span class="scnum" data-peek="${s.id}" role="button" tabindex="0" aria-label="תצוגה מהירה של סצנה ${s.n}">${s.n}</span>
       <div class="grow"><b>${esc(s.intExt)}. ${esc(s.location)} · ${esc(s.time)}</b><p class="small">${esc(s.summary)}</p><span class="muted small">${sceneMin(s)} דק׳ · ${done}${noteCount("scene", s.id) ? " · 📝 " + noteCount("scene", s.id) : ""}</span></div>
       <div class="lgo"><button class="btn sm2" data-act="list-go" data-to="script" data-id="${s.id}">תסריט</button><button class="btn sm2" data-act="list-go" data-to="shots" data-id="${s.id}">שוטים</button><button class="btn sm2" data-act="list-go" data-to="plan" data-id="${s.id}">לו"ז</button></div></div>`;
   }).join("");
@@ -834,7 +834,7 @@ VIEWS.plan = () => {
       if (it.kind === "meal") return `<div class="card q misc"><span class="t">${hhmm(it.t)}</span><span>🍽 הפסקת אוכל (${it.m}')</span></div>`;
       if (it.kind === "loc") return `<div class="card q loc"><span class="t">${hhmm(it.t)}</span><span>📍 ${esc(it.loc)} · ${esc(it.ie)} · ${esc(it.time)}${it.m ? ` <span class="muted small">(מעבר ${it.m}')</span>` : ""}</span>${noteCount("loc", normLoc(it.loc)) ? `<span class="tag n">📝 ${noteCount("loc", normLoc(it.loc))}</span>` : ""}</div>`;
       const s = it.s; let t = it.t; const live = s.shots.length; const doneN = s.shots.filter(x => x.status === "shot").length; const rem = remindersFor(s.n); const nc = noteCount("scene", s.id);
-      return `<div class="card q sc" id="pl-${s.id}"><div class="top"><span class="t">${hhmm(it.t)}</span><span class="grow"><span class="schead"><span class="scnum">${s.n}</span><b>${esc(s.intExt)}. ${esc(s.location)} · ${esc(s.time)}</b></span><span class="small">${esc(s.summary)}</span><br><span class="muted small">${live ? s.shots.length + " שוטים · " : ""}${it.m}'${nc ? " · 📝 " + nc : ""}</span>${rem.map(r => `<span class="remind">✂ ${esc(r)}</span>`).join("")}</span>${dayOpts(s)}${live ? `<span class="mono">${s.shots.filter(x => x.status === "shot").length}/${liveShots(s).length}</span>` : chip(s.status, `data-act="st" data-k="scene" data-id="${s.id}"`)}</div>
+      return `<div class="card q sc" id="pl-${s.id}"><div class="top"><span class="t">${hhmm(it.t)}</span><span class="grow"><span class="schead"><span class="scnum" data-peek="${s.id}" role="button" tabindex="0" aria-label="תצוגה מהירה של סצנה ${s.n}">${s.n}</span><b>${esc(s.intExt)}. ${esc(s.location)} · ${esc(s.time)}</b></span><span class="small">${esc(s.summary)}</span><br><span class="muted small">${live ? s.shots.length + " שוטים · " : ""}${it.m}'${nc ? " · 📝 " + nc : ""}</span>${rem.map(r => `<span class="remind">✂ ${esc(r)}</span>`).join("")}</span>${dayOpts(s)}${live ? `<span class="mono">${s.shots.filter(x => x.status === "shot").length}/${liveShots(s).length}</span>` : chip(s.status, `data-act="st" data-k="scene" data-id="${s.id}"`)}</div>
         ${live ? `<div class="shotrows">${R && doneN ? `<span class="muted small">✓ ${doneN} שוטים כבר צולמו</span>` : ""}${s.shots.filter(x => !R || x.status !== "shot").map(x => { const h = `<div class="shotrow ${x.status === "cut" ? "is-cut" : ""}"><span class="mono muted">${x.status === "cut" ? "" : hhmm(t)}</span><span class="mono">${esc(x.code)}</span><span class="d">${esc(x.desc)}</span><span class="mono muted">${esc(x.size)} · ${x.minutes}'</span>${chip(x.status, `data-act="st" data-k="shot" data-id="${x.id}"`)}</div>`; if (x.status !== "cut") t += +x.minutes || 0; return h; }).join("")}</div>` : ""}</div>`;
     }).join("")}</div></div>`;
   const cutScenes = P.scenes.filter(s => s.status === "cut");
@@ -892,7 +892,7 @@ VIEWS.set = () => {
     const x = cur.x, s = cur.s, f = (x && x.flags) || {};
     const rem = remindersFor(s.n);
     const cst = (x || s).status || "left";
-    now = `<div class="card now"><span class="mono muted">${cst === "left" ? "עכשיו מצלמים" : "פתחת שוט שכבר סומן"} · Sc ${s.n} · ${esc(s.location)}</span>
+    now = `<div class="card now"><span class="mono muted">${cst === "left" ? "עכשיו מצלמים" : "פתחת שוט שכבר סומן"} · <span class="peeklink" data-peek="${s.id}" role="button" tabindex="0">Sc ${s.n}</span> · ${esc(s.location)}</span>
       ${cst !== "left" ? `<div class="dirty">כרגע מסומן: ${STL[cst]} <button class="btn sm2" data-act="set-mark" data-s="left">↺ החזר ל-Left (לא צולם)</button></div>` : ""}
       <div class="row"><span class="code">${x ? esc(x.code) : "Sc " + s.n}</span><div><h3>${esc(x ? x.desc : s.summary)}</h3><span class="muted">${x ? `${esc(x.size)} · ${esc(x.move)}${x.lens ? " · " + esc(x.lens) : ""} · ${x.minutes} דק׳` : "בלי פירוק לשוטים"}</span></div></div>
       ${x ? `<div class="sbbox">${frame(x, PAL_APP)}</div>` : ""}
@@ -909,8 +909,8 @@ VIEWS.set = () => {
   <div class="body"><div class="setwrap">${now}
     <div style="display:flex;flex-direction:column;gap:10px">
       <div class="card" style="padding:14px;display:flex;gap:14px;align-items:center">${ring}<div><b>${byScript ? "כל הסרט" : "Day " + ui.setDay}</b><br><span class="muted">${pr.nDone} מתוך ${pr.nShots}${byScript ? ` · נשאר ${Math.round(ctxScenes.reduce((a, s) => a + remMin(s), 0) / 6) / 10}h` : ` · Wrap ≈ ${hhmm(day.wrap)}`}</span></div></div>
-      ${nextList.length ? `<span class="mono muted">הבא בתור</span>${nextList.map(e => `<button class="card q qbtn" data-act="set-pick" data-id="${e.x ? e.x.id : e.s.id}"><span class="t">${e.x ? esc(e.x.code) : "Sc " + e.s.n}</span><span class="grow">${esc(e.x ? e.x.size + " · " + e.x.desc : e.s.summary)}</span>${e.x && e.x.status === "part" ? '<span class="tag a">Partial</span>' : ""}</button>`).join("")}` : ""}
-      ${q.filter(isDone).length ? `<span class="mono muted">צולמו · נגיעה פותחת ומאפשרת לבטל</span>${q.filter(isDone).slice(-6).map(e => `<button class="card q qbtn" data-act="set-pick" data-id="${e.x ? e.x.id : e.s.id}" style="opacity:.6"><span class="t">${e.x ? esc(e.x.code) : "Sc " + e.s.n}</span><span class="grow">${esc(e.x ? e.x.desc : e.s.summary)}</span><span class="tag t">✓</span></button>`).join("")}` : ""}
+      ${nextList.length ? `<span class="mono muted">הבא בתור</span>${nextList.map(e => `<button class="card q qbtn" data-act="set-pick" data-id="${e.x ? e.x.id : e.s.id}"><span class="t" data-peek="${e.s.id}">${e.x ? esc(e.x.code) : "Sc " + e.s.n}</span><span class="grow">${esc(e.x ? e.x.size + " · " + e.x.desc : e.s.summary)}</span>${e.x && e.x.status === "part" ? '<span class="tag a">Partial</span>' : ""}</button>`).join("")}` : ""}
+      ${q.filter(isDone).length ? `<span class="mono muted">צולמו · נגיעה פותחת ומאפשרת לבטל</span>${q.filter(isDone).slice(-6).map(e => `<button class="card q qbtn" data-act="set-pick" data-id="${e.x ? e.x.id : e.s.id}" style="opacity:.6"><span class="t" data-peek="${e.s.id}">${e.x ? esc(e.x.code) : "Sc " + e.s.n}</span><span class="grow">${esc(e.x ? e.x.desc : e.s.summary)}</span><span class="tag t">✓</span></button>`).join("")}` : ""}
       ${hasProgress() ? `<button class="btn ghost sm2" data-act="reset-progress">↺ אפס את כל הסימונים</button>` : ""}
     </div></div></div></div>${notesPane()}`;
 };
@@ -1012,8 +1012,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "2.7";
+const APP_VERSION = "2.8";
 const CHANGES = [
+  ["2.8", ["נגיעה במספר סצנה פותחת תצוגה מהירה שלה ל-5 שניות. נגיעה בתצוגה משאירה אותה פתוחה."]],
   ["2.7", ["מצב סט כרונולוגי: מתג \"לפי הלו\"ז / לפי התסריט\". לפי התסריט, השוטים עולים לפי סדר הסצנות בסרט."]],
   ["2.6", ["מחיקת תמונת רפרנס גם במצב סט, וגם מתוך התמונה המוגדלת (🗑 מחק)."]],
   ["2.5", ["צבעי האפליקציה לפי הלוגו: כחול לילה, תכלת, ענבר וקרם."]],
@@ -1072,7 +1073,7 @@ function openMenu() {
 function closeSettings() { const p = ui.prev && ui.prev !== "settings" && VIEWS[ui.prev] ? ui.prev : "home"; go(p); }
 function closeMenu() { $("#drawerwrap").hidden = true; }
 $("#drawerwrap").addEventListener("click", e => { if (e.target.id === "drawerwrap") closeMenu(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#lightbox").hidden) closeLightbox(); else if (!$("#drawerwrap").hidden) closeMenu(); else if (!$("#sheetwrap").hidden) closeSheet(); } });
+document.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.dataset && e.target.dataset.peek) { e.preventDefault(); openPeek(e.target.dataset.peek); return; } if (e.key === "Escape") { if (!$("#peek").hidden) closePeek(); else if (!$("#lightbox").hidden) closeLightbox(); else if (!$("#drawerwrap").hidden) closeMenu(); else if (!$("#sheetwrap").hidden) closeSheet(); } });
 let installEvt = null;
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; });
 window.addEventListener("appinstalled", () => { installEvt = null; toast("ProLab הותקנה במסך הבית ✓"); });
@@ -1134,6 +1135,27 @@ $("#lbdel").addEventListener("click", e => {
   closeLightbox(); if (lbCtx) ACTIONS["ref-del"]({ dataset: { shot: lbCtx.shot, ref: lbCtx.ref } }); toast("הרפרנס נמחק");
 });
 $("#lightbox").addEventListener("click", e => { if (e.target.id === "lightbox") closeLightbox(); });
+
+/* ================= scene peek: tap a scene number, open for 5s, tap to keep ================= */
+let pkTimer = null, pkScene = null;
+function openPeek(id) {
+  const s = P && P.scenes.find(x => x.id === id); if (!s) return; pkScene = id;
+  const shots = s.shots.length ? `<div class="pkshots">${s.shots.map(x => `<span class="tag ${x.status === "shot" ? "t" : x.status === "cut" ? "r" : x.status === "part" ? "a" : ""}">${esc(x.code)} · ${esc(x.size)}</span>`).join("")}</div>` : "";
+  const notes = notesFor("scene", s.id).filter(n => !n.done).map(n => `<div class="note"><div class="grow"><span class="nt">${(NOTE_CAT[n.cat] || NOTE_CAT.gen)[1]} ${(NOTE_CAT[n.cat] || NOTE_CAT.gen)[2]}</span>${esc(n.text)}</div></div>`).join("");
+  $("#peek").innerHTML = `<div class="pkcard" id="pkcard"><span class="lbbar pkbar" id="pkbar"></span>
+    <div class="schead"><span class="scnum">${s.n}</span><b class="grow">${esc(s.intExt)}. ${esc(s.location)} · ${esc(s.time)}</b><button class="btn ghost sm2" id="pkx" aria-label="סגור">✕</button></div>
+    <p><b>${esc(s.summary)}</b></p><span class="muted small">${sceneMin(s)} דק׳${(s.characters || []).length ? " · " + esc(s.characters.join(", ")) : ""}</span>
+    <div class="pkscript">${s.blocks.map(b => b.t === "d" ? `<div class="ln dlg" style="cursor:default"><span class="who">${esc(b.c)}</span><span class="txt">${b.p ? `<i>(${esc(b.p)})</i> ` : ""}${esc(b.x)}</span></div>` : `<div class="ln act" style="cursor:default"><span class="who">פעולה</span><span class="txt">${esc(b.x)}</span></div>`).join("") || '<p class="muted">אין טקסט.</p>'}</div>
+    ${shots}${notes}
+    <p class="pkhint small muted" id="pkhint">נגיעה בחלון משאירה אותו פתוח</p>
+    <div class="row"><button class="btn sm2" id="pkscript">פתח בתסריט</button><button class="btn sm2" id="pkshots">שוטים</button></div></div>`;
+  $("#peek").hidden = false; clearTimeout(pkTimer); pkTimer = setTimeout(closePeek, 5000);
+  $("#pkx").onclick = e => { e.stopPropagation(); closePeek(); };
+  $("#pkcard").onclick = () => { if ($("#pkcard").classList.contains("pinned")) return; clearTimeout(pkTimer); $("#pkcard").classList.add("pinned"); $("#pkhint").textContent = "📌 נשאר פתוח · ✕ לסגירה"; };
+  $("#pkscript").onclick = e => { e.stopPropagation(); closePeek(); ui.scene = id; ui.sub = "scenes"; go("script", { force: true }); };
+  $("#pkshots").onclick = e => { e.stopPropagation(); closePeek(); ui.shScene = id; go("shots", { force: true }); };
+}
+function closePeek() { clearTimeout(pkTimer); $("#peek").hidden = true; pkScene = null; }
 
 /* ================= render + routing ================= */
 const NEEDS_P = ["script", "shots", "plan", "set", "cut", "ai", "whisky", "cheers"];
@@ -1396,6 +1418,7 @@ const ACTIONS = {
   "sheet-close"() { closeSheet(); }
 };
 document.addEventListener("click", e => {
+  const pk = e.target.closest("[data-peek]"); if (pk) { e.preventDefault(); e.stopPropagation(); openPeek(pk.dataset.peek); return; }
   const im = e.target.closest(".ref img[data-img]"); if (im && im.src) { e.preventDefault(); openLightbox(im.src, im.dataset.shot ? { shot: im.dataset.shot, ref: im.dataset.ref } : null); return; }
   const g = e.target.closest("[data-go]"); if (g) { e.preventDefault(); commitEdit(); go(g.dataset.go); return; }
   const v = e.target.closest(".rail [data-view]"); if (v) { commitEdit(); if (v.dataset.view === "settings" && ui.view === "settings") { closeSettings(); return; } go(v.dataset.view); return; }

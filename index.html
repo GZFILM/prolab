@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bellefair&family=Rubik:wght@400;500;700&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="styles.css?v=2.7">
+<link rel="stylesheet" href="styles.css?v=2.8">
 </head>
 <body>
 <div class="app" id="app">
@@ -48,6 +48,7 @@
   <div class="row"><button class="btn primary" id="mGo">המשך</button><button class="btn" id="mCancel">ביטול</button></div>
 </div></div>
 
+<div class="peek" id="peek" hidden></div>
 <div class="lightbox" id="lightbox" hidden><figure class="lbfig" id="lbfig"><img id="lbimg" alt="רפרנס"><figcaption id="lbcap">נגיעה בתמונה משאירה אותה פתוחה</figcaption><span class="lbbar" id="lbbar"></span><button class="lbx" id="lbx" aria-label="סגור">✕</button><button class="lbdel" id="lbdel" hidden>🗑 מחק</button></figure></div>
 <div id="printview" dir="rtl"></div>
 <input type="file" id="fScript" accept=".txt,.md,.fountain,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="vh" tabindex="-1">
@@ -56,6 +57,6 @@
 <input type="file" id="fJson" accept=".json,application/json" class="vh" tabindex="-1">
 
 <script src="vendor/anthropic-sdk.js" defer></script>
-<script src="app.js?v=2.7" defer></script>
+<script src="app.js?v=2.8" defer></script>
 </body>
 </html>
