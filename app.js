@@ -56,7 +56,7 @@ const ICONS = {
   paste: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V2h6v2M9 10h6M9 14h6"/></svg>',
   idea: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/></svg>'};
 
-const LOGO = id => `<svg viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="lg${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14363b"/><stop offset="1" stop-color="#0a1a1d"/></linearGradient><linearGradient id="lh${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3b54a"/><stop offset=".6" stop-color="#d9822b"/><stop offset="1" stop-color="#c2414b"/></linearGradient></defs><rect width="48" height="48" rx="12" fill="url(#lg${id})"/><g stroke="#33bfae" stroke-width="2.4" fill="none" stroke-linecap="round"><path d="M10 17v-7h7M38 17v-7h-7M10 31v7h7M38 31v7h-7"/></g><path d="M24 34.5c-5.6-4.1-9.3-7.4-9.3-11.4 0-2.8 2.1-4.8 4.6-4.8 1.9 0 3.6 1.1 4.7 2.9 1.1-1.8 2.8-2.9 4.7-2.9 2.5 0 4.6 2 4.6 4.8 0 4-3.7 7.3-9.3 11.4z" fill="url(#lh${id})"/><circle cx="35" cy="13" r="1.8" fill="#ec5f69"/></svg>`;
+const LOGO = id => `<svg viewBox="0 0 1024 1024" aria-hidden="true"><defs><clipPath id="lc${id}"><rect width="1024" height="1024" rx="232"/></clipPath><linearGradient id="lb${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#132C45"/><stop offset="1" stop-color="#0B1828"/></linearGradient><linearGradient id="lf${id}" gradientUnits="userSpaceOnUse" x1="250" y1="790" x2="702" y2="338"><stop offset="0" stop-color="#9CC4E8" stop-opacity="0.55"/><stop offset="1" stop-color="#9CC4E8" stop-opacity="0.08"/></linearGradient><pattern id="lgr${id}" width="64" height="64" patternUnits="userSpaceOnUse"><path d="M64 0H0V64" fill="none" stroke="#9CC4E8" stroke-opacity="0.09" stroke-width="2"/></pattern></defs><g clip-path="url(#lc${id})"><rect width="1024" height="1024" fill="url(#lb${id})"/><rect width="1024" height="1024" fill="url(#lgr${id})"/><polygon points="250,790 849,485 555,191" fill="url(#lf${id})"/><path d="M250 790 L849 485 M250 790 L555 191" stroke="#9CC4E8" stroke-opacity="0.5" stroke-width="5" fill="none"/><path d="M664 478 Q 820 540 778 646" fill="none" stroke="#FFF6EC" stroke-width="12" stroke-linecap="round" stroke-dasharray="2 30"/><circle cx="760" cy="706" r="50" fill="none" stroke="#F0A94C" stroke-width="12" stroke-dasharray="26 18"/><circle cx="620" cy="420" r="70" fill="#F0A94C"/><polygon points="555,450 530,512 592,486" fill="#F0A94C"/><circle cx="250" cy="790" r="22" fill="#FFF6EC"/></g></svg>`;
 
 /* ================= storage ================= */
 const IDB = {
@@ -1003,8 +1003,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "2.3";
+const APP_VERSION = "2.4";
 const CHANGES = [
+  ["2.4", ["אייקון ולוגו חדשים לאפליקציה."]],
   ["2.3", ["במסך התסריט: לשונית \"רשימה\" עם כל הסצנות לפי הסדר ותיאור קצר, ומכל סצנה קפיצה לתסריט, לשוטים או ללו\"ז."]],
   ["2.2", ["📄 התסריט המקורי בלחיצה: בלו\"ז, במסך התסריט ובתפריט. המספר של כל סצנה מופיע ליד הכותרת שלה, והקובץ המקורי (PDF / Word) נפתח מכאן.", "בלו\"ז: מספר הסצנה צמוד לכותרת (פנים/חוץ, לוקיישן, יום/לילה)."]],
   ["2.1", ["↩ בטל סימון: מבטל את הסימון האחרון (Shot / Partial / Cut).", "במצב סט: נגיעה בשוט שכבר צולם פותחת אותו, ואפשר להחזיר אותו ל-Left.", "↺ אפס את כל הסימונים: מחזיר את הפרויקט למצב שלפני הצילום."]],
