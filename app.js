@@ -882,6 +882,7 @@ VIEWS.set = () => {
   const { q, scenes: ctxScenes, day, days } = setCtx(); const byScript = setByScript();
   const isDone = e => (e.x ? e.x.status : e.s.status) === "shot";
   let cur = q.find(e => (e.x ? e.x.id : e.s.id) === ui.setShot) || q.find(e => !isDone(e)) || null;
+  ui.setCurScene = cur ? cur.s.id : null;
   const pr = progressOf(ctxScenes);
   const orderSeg = `<div class="seg"><button class="${byScript ? "" : "on"}" data-act="set-order" data-v="plan">לפי הלו"ז</button><button class="${byScript ? "on" : ""}" data-act="set-order" data-v="script">לפי התסריט</button></div>`;
   const daySeg = !byScript && days.length > 1 ? `<div class="seg">${days.map(d => `<button class="${d.n === ui.setDay ? "on" : ""}" data-act="set-day" data-day="${d.n}">Day ${d.n}</button>`).join("")}</div>` : "";
@@ -974,7 +975,7 @@ VIEWS.cut = () => {
   if (!P) return `<div class="col">${noProject()}</div>`;
   const tr = P.transitions || [];
   const tl = P.scenes.length ? P.scenes.map((s, i) => { const t = tr.find(x => x.from === s.n);
-    return `<div class="card tl-scene"><span class="mono muted">SC ${s.n}</span><span>${esc(s.location)} · ${esc(s.summary)}</span></div>${i < P.scenes.length - 1 ? (t ? `<div class="tl-tr"><span class="aiic">✦</span><div><b>${esc(t.type)}</b><div>${esc(t.idea)}</div>${t.shoot ? `<div class="shoot">✂ לצלם: ${esc(t.shoot)}</div>` : ""}</div></div>` : `<div class="tl-tr"><span class="muted small">—</span></div>`) : ""}`; }).join("") : noScenes();
+    return `<div class="card tl-scene" id="cu-${s.id}"><span class="mono muted peeklink" data-peek="${s.id}">SC ${s.n}</span><span>${esc(s.location)} · ${esc(s.summary)}</span></div>${i < P.scenes.length - 1 ? (t ? `<div class="tl-tr"><span class="aiic">✦</span><div><b>${esc(t.type)}</b><div>${esc(t.idea)}</div>${t.shoot ? `<div class="shoot">✂ לצלם: ${esc(t.shoot)}</div>` : ""}</div></div>` : `<div class="tl-tr"><span class="muted small">—</span></div>`) : ""}`; }).join("") : noScenes();
   const canShare = !!(navigator.canShare && window.File);
   return `<div class="col">${bar("עריכה וייצוא", "מעברים לפי סדר הסיפור", `<button class="btn ai" data-act="trans" data-ai ${P.scenes.length < 2 ? "disabled" : ""}>✦ ${tr.length ? "הצע מחדש" : "הצע מעברים"}</button>`)}
   <div class="body">
@@ -1012,8 +1013,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "2.8";
+const APP_VERSION = "2.9";
 const CHANGES = [
+  ["2.9", ["מעבר בין תסריט, שוטים, לו\"ז, סט ועריכה שומר על אותה סצנה."]],
   ["2.8", ["נגיעה במספר סצנה פותחת תצוגה מהירה שלה ל-5 שניות. נגיעה בתצוגה משאירה אותה פתוחה."]],
   ["2.7", ["מצב סט כרונולוגי: מתג \"לפי הלו\"ז / לפי התסריט\". לפי התסריט, השוטים עולים לפי סדר הסצנות בסרט."]],
   ["2.6", ["מחיקת תמונת רפרנס גם במצב סט, וגם מתוך התמונה המוגדלת (🗑 מחק)."]],
@@ -1157,6 +1159,41 @@ function openPeek(id) {
 }
 function closePeek() { clearTimeout(pkTimer); $("#peek").hidden = true; pkScene = null; }
 
+/* ================= same scene across tabs ================= */
+const SYNC_VIEWS = ["script", "shots", "plan", "set", "cut"];
+function topVisible(prefix) {
+  const body = $("#main .body"); if (!body) return null;
+  if (ui.landed && ui.landed.view === ui.view) return ui.landed.id;
+  const top = body.getBoundingClientRect().top - 8;
+  const els = [...body.querySelectorAll(`[id^="${prefix}"]`)];
+  const el = els.find(e => e.getBoundingClientRect().top >= top) || els[els.length - 1];
+  return el ? el.id.slice(prefix.length) : null;
+}
+function currentSceneId() {
+  if (!P || !P.scenes.length) return null;
+  switch (ui.view) {
+    case "script": return (curScene() || {}).id;
+    case "shots": return (shScene() || {}).id;
+    case "plan": return topVisible("pl-");
+    case "cut": return topVisible("cu-");
+    case "set": return ui.setCurScene || null;
+  }
+  return null;
+}
+function showScene(v, id) {
+  const s = P && P.scenes.find(x => x.id === id); if (!s) return;
+  if (v === "script") { ui.scene = id; ui.sub = "scenes"; }
+  else if (v === "shots") ui.shScene = id;
+  else if (v === "plan" || v === "cut") { ui.focus = (v === "plan" ? "pl-" : "cu-") + id; ui.landed = { view: v, id }; }
+  else if (v === "set") {
+    if (s.status === "cut") return;
+    if (!setByScript()) { const days = schedule(); const d = days.findIndex(x => x.scenes.includes(s)); if (d < 0) return; ui.setDay = d + 1; }
+    const live = s.shots.filter(x => x.status !== "cut");
+    const x = live.find(x => x.status !== "shot") || live[0];
+    ui.setShot = x ? x.id : s.id;
+  }
+}
+
 /* ================= render + routing ================= */
 const NEEDS_P = ["script", "shots", "plan", "set", "cut", "ai", "whisky", "cheers"];
 function render() {
@@ -1180,10 +1217,11 @@ function render() {
 function go(v, opts = {}) {
   if (v === ui.view && !opts.force) { render(); return; }
   if (v === "settings" && ui.view !== "settings") ui.prev = ui.view;
-  ui.view = v; ui.edit = null; ui.editHead = false;
+  ui.view = v; ui.edit = null; ui.editHead = false; if (!opts.keepLanded) ui.landed = null;
   if (location.hash.slice(1) !== v) history.pushState(null, "", "#" + v);
   render();
 }
+["wheel", "touchmove", "keydown"].forEach(t => $("#main").addEventListener(t, () => { ui.landed = null; }, { passive: true }));
 window.addEventListener("popstate", () => { const v = location.hash.slice(1) || "home"; ui.view = VIEWS[v] ? v : "home"; ui.edit = null; render(); });
 function rerender() { render.keepScroll = true; render(); }
 
@@ -1421,7 +1459,7 @@ document.addEventListener("click", e => {
   const pk = e.target.closest("[data-peek]"); if (pk) { e.preventDefault(); e.stopPropagation(); openPeek(pk.dataset.peek); return; }
   const im = e.target.closest(".ref img[data-img]"); if (im && im.src) { e.preventDefault(); openLightbox(im.src, im.dataset.shot ? { shot: im.dataset.shot, ref: im.dataset.ref } : null); return; }
   const g = e.target.closest("[data-go]"); if (g) { e.preventDefault(); commitEdit(); go(g.dataset.go); return; }
-  const v = e.target.closest(".rail [data-view]"); if (v) { commitEdit(); if (v.dataset.view === "settings" && ui.view === "settings") { closeSettings(); return; } go(v.dataset.view); return; }
+  const v = e.target.closest(".rail [data-view]"); if (v) { commitEdit(); if (v.dataset.view === "settings" && ui.view === "settings") { closeSettings(); return; } const to = v.dataset.view; if (to !== ui.view && SYNC_VIEWS.includes(to) && SYNC_VIEWS.includes(ui.view)) { const id = currentSceneId(); if (id) showScene(to, id); } go(to, { keepLanded: true }); return; }
   const a = e.target.closest("[data-act]");
   const fn = a && (ACTIONS[a.dataset.act] || ACTIONS_EXTRA[a.dataset.act]);
   if (fn && a.tagName !== "SELECT") { if (a.disabled) return; fn(a, e); }
