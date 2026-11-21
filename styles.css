@@ -170,6 +170,14 @@ textarea{unicode-bidi:plaintext;width:100%;min-height:200px;font-family:var(--f-
 .ln .txt{flex:1;font-size:.95rem;white-space:pre-wrap;unicode-bidi:plaintext;text-align:start}
 .ln .txt i{color:var(--muted);font-size:.85rem}
 .ln mark{background:var(--part-bg);color:inherit}
+/* screenplay format */
+.ln.fmt{flex-direction:column;gap:2px;background:none}
+.ln.fmt.act .txt{font-size:.98rem;line-height:1.55}
+.ln.fmt.dlg{align-items:center;padding:8px 12px 10px}
+.ln.fmt.dlg .who{min-width:0;text-align:center;font:700 .92rem var(--f-d);color:var(--teal)}
+.ln.fmt .par{color:var(--muted);font-style:italic;font-size:.85rem;text-align:center;unicode-bidi:plaintext}
+.ln.fmt.dlg .txt{flex:none;width:min(62%,460px);max-width:100%;text-align:start;line-height:1.5}
+@media (max-width:640px){.ln.fmt.dlg .txt{width:86%}}
 .ln.edit{border-color:var(--amber);background:var(--card);box-shadow:0 0 0 3px var(--amber-soft);cursor:default;flex-direction:column}
 .ln.edit textarea{min-height:70px;font-family:var(--f-b);font-size:.95rem}
 .lntools{display:flex;gap:6px;flex-wrap:wrap}

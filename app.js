@@ -713,7 +713,7 @@ function scriptScenes() {
         <textarea id="etext">${esc(b.x)}</textarea>
         <div class="lntools"><button data-act="ed-done" style="background:var(--amber);color:#1a1206;border-color:var(--amber)">סיום</button><button data-act="ed-move" data-d="-1">↑ הזז</button><button data-act="ed-move" data-d="1">↓ הזז</button><button data-act="ed-add" data-t="a">+ פעולה אחרי</button><button data-act="ed-add" data-t="d">+ דיאלוג אחרי</button><button data-act="note-open">📝 הערה</button><button data-act="ed-del" style="color:var(--crimson)">מחק</button></div></div>`;
     }
-    return `<button class="ln ${b.t === "d" ? "dlg" : "act"}" data-act="ed" data-i="${i}"><span class="who">${b.t === "d" ? esc(b.c) : "פעולה"}</span><span class="txt">${b.p ? `<i>(${esc(b.p)})</i> ` : ""}${hl(b.x)}</span></button>`;
+    return `<button class="ln fmt ${b.t === "d" ? "dlg" : "act"}" data-act="ed" data-i="${i}">${b.t === "d" ? `<span class="who">${esc(b.c)}</span>${b.p ? `<span class="par">(${esc(b.p)})</span>` : ""}` : ""}<span class="txt">${hl(b.x)}</span></button>`;
   }).join("");
   const head = ui.editHead ? `<div class="card" style="padding:12px;display:flex;flex-direction:column;gap:10px"><div class="formgrid">
       <label><span class="lbl">לוקיישן</span><input type="text" id="hloc" value="${esc(s.location)}"></label>
@@ -764,7 +764,7 @@ function scriptLocs() {
   const main = `<div class="split">${list}<div style="display:flex;flex-direction:column;gap:12px;min-width:0">
     <div class="row"><h3>${esc(g.name)}</h3>${times.map(t => `<span class="tag">${esc(t)}</span>`).join("")}<span class="mono muted">${g.scenes.length} סצנות · ${mins} דק׳ · ${esc(cast.join(", "))}</span></div>
     ${g.scenes.map(s => `<div class="card loccard"><div class="row"><b class="grow">Sc ${s.n} · ${esc(s.summary)}</b>${tags(s)}<button class="btn ghost sm2" data-act="goto-scene" data-id="${s.id}">פתח ←</button></div>
-      ${s.blocks.map(b => `<div class="ln ${b.t === "d" ? "dlg" : "act"}" style="cursor:default"><span class="who">${b.t === "d" ? esc(b.c) : "פעולה"}</span><span class="txt">${esc(b.x)}</span></div>`).join("")}</div>`).join("")}
+      ${s.blocks.map(b => `<div class="ln fmt ${b.t === "d" ? "dlg" : "act"}" style="cursor:default">${b.t === "d" ? `<span class="who">${esc(b.c)}</span>${b.p ? `<span class="par">(${esc(b.p)})</span>` : ""}` : ""}<span class="txt">${esc(b.x)}</span></div>`).join("")}</div>`).join("")}
   </div></div>`;
   return [main, "נוגעים בלוקיישן ורואים כל מה שקורה בו"];
 }
@@ -1013,8 +1013,9 @@ VIEWS.settings = () => {
 };
 
 /* ================= side menu ================= */
-const APP_VERSION = "2.9";
+const APP_VERSION = "3.0";
 const CHANGES = [
+  ["3.0", ["התסריט מוצג בפורמט תסריט: שם הדמות במרכז, ההערה בסוגריים מתחתיו והדיאלוג בעמודה צרה."]],
   ["2.9", ["מעבר בין תסריט, שוטים, לו\"ז, סט ועריכה שומר על אותה סצנה."]],
   ["2.8", ["נגיעה במספר סצנה פותחת תצוגה מהירה שלה ל-5 שניות. נגיעה בתצוגה משאירה אותה פתוחה."]],
   ["2.7", ["מצב סט כרונולוגי: מתג \"לפי הלו\"ז / לפי התסריט\". לפי התסריט, השוטים עולים לפי סדר הסצנות בסרט."]],
@@ -1147,7 +1148,7 @@ function openPeek(id) {
   $("#peek").innerHTML = `<div class="pkcard" id="pkcard"><span class="lbbar pkbar" id="pkbar"></span>
     <div class="schead"><span class="scnum">${s.n}</span><b class="grow">${esc(s.intExt)}. ${esc(s.location)} · ${esc(s.time)}</b><button class="btn ghost sm2" id="pkx" aria-label="סגור">✕</button></div>
     <p><b>${esc(s.summary)}</b></p><span class="muted small">${sceneMin(s)} דק׳${(s.characters || []).length ? " · " + esc(s.characters.join(", ")) : ""}</span>
-    <div class="pkscript">${s.blocks.map(b => b.t === "d" ? `<div class="ln dlg" style="cursor:default"><span class="who">${esc(b.c)}</span><span class="txt">${b.p ? `<i>(${esc(b.p)})</i> ` : ""}${esc(b.x)}</span></div>` : `<div class="ln act" style="cursor:default"><span class="who">פעולה</span><span class="txt">${esc(b.x)}</span></div>`).join("") || '<p class="muted">אין טקסט.</p>'}</div>
+    <div class="pkscript">${s.blocks.map(b => `<div class="ln fmt ${b.t === "d" ? "dlg" : "act"}" style="cursor:default">${b.t === "d" ? `<span class="who">${esc(b.c)}</span>${b.p ? `<span class="par">(${esc(b.p)})</span>` : ""}` : ""}<span class="txt">${esc(b.x)}</span></div>`).join("") || '<p class="muted">אין טקסט.</p>'}</div>
     ${shots}${notes}
     <p class="pkhint small muted" id="pkhint">נגיעה בחלון משאירה אותו פתוח</p>
     <div class="row"><button class="btn sm2" id="pkscript">פתח בתסריט</button><button class="btn sm2" id="pkshots">שוטים</button></div></div>`;
