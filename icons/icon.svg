@@ -16,5 +16,5 @@
   <circle cx="236" cy="760" r="30" fill="#FFF6EC"/>
   </g>
   <rect x="0" y="872" width="1024" height="152" fill="#0E1114"/>
-  <text x="512" y="958" text-anchor="middle" font-family="Archivo, Bahnschrift, 'Segoe UI', Arial, sans-serif" font-weight="600" font-size="52" letter-spacing="9" fill="#F0A94C">G.Z MOTION LAB</text>
+  <text x="512" y="972" text-anchor="middle" style="font-family:Archivo,Bahnschrift,Arial,sans-serif;font-weight:800;font-stretch:125%" font-size="76" letter-spacing="4"><tspan fill="#FFF6EC">G.Z </tspan><tspan fill="#F0A94C">A</tspan><tspan fill="#FFF6EC" dx="-16">LAB</tspan></text>
 </svg>
