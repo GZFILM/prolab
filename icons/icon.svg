@@ -1,24 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>PRO LAB</title>
   <defs>
-    <linearGradient id="bgC" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#132C45"/>
-      <stop offset="1" stop-color="#0B1828"/>
+    <linearGradient id="amb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6B862"/>
+      <stop offset="1" stop-color="#E99A38"/>
     </linearGradient>
-    <linearGradient id="fov" gradientUnits="userSpaceOnUse" x1="250" y1="790" x2="702" y2="338">
-      <stop offset="0" stop-color="#9CC4E8" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#9CC4E8" stop-opacity="0.08"/>
-    </linearGradient>
-    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
-      <path d="M64 0H0V64" fill="none" stroke="#9CC4E8" stroke-opacity="0.09" stroke-width="2"/>
-    </pattern>
   </defs>
-  <rect width="1024" height="1024" fill="url(#bgC)"/>
-  <rect width="1024" height="1024" fill="url(#grid)"/>
-  <polygon points="250,790 849,485 555,191" fill="url(#fov)"/>
-  <path d="M250 790 L849 485 M250 790 L555 191" stroke="#9CC4E8" stroke-opacity="0.5" stroke-width="5" fill="none"/>
-  <path d="M664 478 Q 820 540 778 646" fill="none" stroke="#FFF6EC" stroke-width="12" stroke-linecap="round" stroke-dasharray="2 30"/>
-  <circle cx="760" cy="706" r="50" fill="none" stroke="#F0A94C" stroke-width="12" stroke-dasharray="26 18"/>
-  <circle cx="620" cy="420" r="70" fill="#F0A94C"/>
-  <polygon points="555,450 530,512 592,486" fill="#F0A94C"/>
-  <circle cx="250" cy="790" r="22" fill="#FFF6EC"/>
+  <rect width="1024" height="1024" fill="url(#amb)"/>
+  <g transform="translate(512 470) scale(1.15) translate(-512 -470)">
+  <polygon points="236,760 836,470 540,170" fill="#0E1114" opacity="0.28"/>
+  <path d="M236 760 L836 470 M236 760 L540 170" stroke="#0E1114" stroke-opacity="0.55" stroke-width="10" fill="none"/>
+  <path d="M676 470 Q 828 536 782 640" fill="none" stroke="#FFF6EC" stroke-width="16" stroke-linecap="round" stroke-dasharray="2 34"/>
+  <circle cx="760" cy="712" r="54" fill="none" stroke="#0E1114" stroke-width="16" stroke-dasharray="30 20"/>
+  <circle cx="616" cy="410" r="84" fill="#0E1114"/>
+  <circle cx="236" cy="760" r="30" fill="#FFF6EC"/>
+  </g>
+  <rect x="0" y="872" width="1024" height="152" fill="#0E1114"/>
+  <text x="512" y="958" text-anchor="middle" font-family="Archivo, Bahnschrift, 'Segoe UI', Arial, sans-serif" font-weight="600" font-size="52" letter-spacing="9" fill="#F0A94C">G.Z MOTION LAB</text>
 </svg>
